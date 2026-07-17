@@ -1,31 +1,27 @@
+
 # OpenCraft Gateway
 
 An open-source SmartCraft gateway for MerCruiser engines.
+The goal is to bridge SmartCraft engine data to modern marine systems including:
 
-## Features
-
-- SmartCraft CAN decoding
 - Signal K
 - MQTT
-- REST API
 - Grafana
 - Future NMEA 2000 support
 
 ## Hardware
 
-- Raspberry Pi Zero 2 W
-- MCP2515 CAN Interface
+- Rasberry Pi Zero 2 W
+- Waveshare 2-Channel Isolated CAN HAT
+- MerCruiser SmartCraft network
 
-## Status
+## Project Status
 
 🚧 Early Development
 
 ## Roadmap
 
-- [ ] Capture SmartCraft traffic
-- [ ] Decode RPM
-- [ ] Decode Engine Temp
-- [ ] Decode Trim
-- [ ] Publish MQTT
-- [ ] Signal K Integration
-- [ ] NMEA 2000 Gateway
+- Repository created 
+- Rasberry Pi configured
+- Project structure established 
+
