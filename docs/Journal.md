@@ -1,6 +1,4 @@
-- ## 2026-07-14
-
-### Milestone
+## 2026-07-14
 
 OpenCraft Gateway repository initialized.
 
@@ -16,3 +14,17 @@ Completed:
 Status:
 
 Project officially started.
+
+
+## 2026-07-17
+
+### Project Initialization
+
+- Installed Raspberry Pi OS
+- Configured SSH and Git.
+- Created project directory structure.
+- Added initial project documentation:
+  - README
+  - Project Vision
+  - Architecture
+  - Hardware BOM
