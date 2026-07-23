@@ -1,4 +1,4 @@
-2026-07-14
+## 2026-07-14
 
 - Created GitHub repository.
 - Installed Git.
@@ -6,8 +6,18 @@
 - Planned hardware.
 - Selected Raspberry Pi Zero 2 W.
 - Selected MCP2515 CAN interface.
+- Created first commit, pushed to GitHub.
 
-2026-07-23 — OC-000 kickoff, OC-001 dashboard prototype
+## 2026-07-17
+
+### Project Initialization
+
+- Installed Raspberry Pi OS.
+- Configured SSH and Git.
+- Created project directory structure.
+- Added initial project documentation: README, Project Vision, Architecture, Hardware BOM.
+
+## 2026-07-23 — OC-000 kickoff, OC-001 dashboard prototype
 
 - OC-000: agreed canonical data model (Signal K), datastore (InfluxDB),
   license (MIT), and general deployment target (embedded on-vessel).
@@ -39,3 +49,8 @@
 - OC-001 dashboard requirements are now fully built and verified end-to-end
   (containers built, data flow confirmed in InfluxDB, every panel query
   tested through Grafana's API, dashboards visually confirmed in-browser).
+- Discovered the local clone was stale relative to `origin/main` (a week
+  of prior setup work — hardware BOM, Pi setup, initial README/Architecture
+  docs — had been pushed but never pulled here). Merged and reconciled
+  README.md, Architecture.md, and this Journal rather than overwriting
+  either side.
