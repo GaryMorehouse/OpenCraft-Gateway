@@ -1,0 +1,105 @@
+{
+  "uid": "opencraft-diagnostics",
+  "title": "Diagnostics",
+  "tags": ["opencraft", "engine"],
+  "timezone": "browser",
+  "style": "dark",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Active Alarms",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"notifications\")\n  |> filter(fn: (r) => r._field == \"state\" or r._field == \"severity\" or r._field == \"message\")\n  |> last()\n  |> pivot(rowKey: [\"path\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"path\", \"state\", \"severity\", \"message\"])\n  |> sort(columns: [\"severity\"], desc: true)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "state" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-background" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "normal": { "color": "green", "index": 0 } } },
+                  { "type": "value", "options": { "warn": { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "alarm": { "color": "red", "index": 2 } } }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Data Source Status",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 9 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"revolutions\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: float(v: int(v: now()) - int(v: r._time)) / 1000000000.0 }))\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: s since last point",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 10, "color": "orange" },
+              { "value": 30, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "text",
+      "title": "ECU Status",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 9 },
+      "options": {
+        "mode": "markdown",
+        "content": "**Not yet available.**\n\nNo physical ECU/SmartCraft interface is connected. This panel will show live ECU health and fault codes once SmartCraft CAN decoding is implemented (future milestone)."
+      }
+    },
+    {
+      "id": 4,
+      "type": "text",
+      "title": "Gateway Status",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 9 },
+      "options": {
+        "mode": "markdown",
+        "content": "**Not yet available.**\n\nNo physical OpenCraft gateway hardware is deployed. This panel will show gateway health (uptime, CAN bus status, publish errors) once the SmartCraft gateway is implemented (future milestone)."
+      }
+    }
+  ]
+}

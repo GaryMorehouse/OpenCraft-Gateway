@@ -1,0 +1,87 @@
+# OpenCraft Gateway — service composition
+#
+# Services are grouped into deployment profiles (see docs/adr/0003-deployment-profiles.md):
+#
+#   dev      Development machine (Windows/macOS/Linux). Full stack colocated.
+#            docker compose --profile dev up
+#
+#   standard Standard Vessel install (Raspberry Pi 4/5). Full stack colocated.
+#            docker compose --profile standard up
+#
+#   gateway  Gateway Only (Raspberry Pi Zero 2 W). Runs only the telemetry
+#            publisher, pointed at InfluxDB running on another device via
+#            INFLUXDB_URL in .env. Today the publisher is the simulator;
+#            it will be replaced by the real SmartCraft driver without
+#            changing this file or any downstream service.
+#            docker compose --profile gateway up
+#
+#   advanced No dedicated profile — run individual services from this file
+#            on separate hosts, each pointed at the others via .env. Every
+#            service reads its dependencies from environment variables only,
+#            so no service assumes co-location.
+#
+# All three named profiles are defined in this single file rather than
+# separate compose files so the service definitions never drift apart.
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: opencraft-influxdb
+    profiles: ["dev", "standard"]
+    restart: unless-stopped
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_INIT_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_INIT_PASSWORD:?set INFLUXDB_INIT_PASSWORD in .env}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_INIT_ORG:-opencraft}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_INIT_BUCKET:-telemetry}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_INIT_ADMIN_TOKEN:?set INFLUXDB_INIT_ADMIN_TOKEN in .env}
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: opencraft-grafana
+    profiles: ["dev", "standard"]
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Consumed via $__env{} macros in grafana/provisioning/datasources/influxdb.yml
+      INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-opencraft}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-telemetry}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:?set INFLUXDB_TOKEN in .env}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  simulator:
+    build: ./services/simulator
+    container_name: opencraft-simulator
+    profiles: ["dev", "standard", "gateway"]
+    restart: unless-stopped
+    environment:
+      INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-opencraft}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-telemetry}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:?set INFLUXDB_TOKEN in .env}
+      SIMULATOR_ENGINES: ${SIMULATOR_ENGINES:-port}
+      SIMULATOR_TICK_SECONDS: ${SIMULATOR_TICK_SECONDS:-1}
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:
