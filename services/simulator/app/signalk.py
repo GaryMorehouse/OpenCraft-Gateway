@@ -16,7 +16,9 @@ deliberate exception to "store SI, convert in Grafana" (see ADR 0001):
 they're composite metrics (speed combined with fuel rate) with no single
 raw sensor behind them and no standard Signal K path, computed once here
 from values already in scope in the same simulator tick rather than via a
-fragile cross-measurement time-alignment join in Grafana.
+fragile cross-measurement time-alignment join in Grafana. They're stored
+directly in MPG/statute miles (not SI) for the same reason: derived
+display-oriented convenience fields, not raw sensor data.
 """
 
 from .engine import TANK_CAPACITY_L, EngineSimulator, VesselEnvironment
@@ -132,22 +134,24 @@ def navigation_points(env: VesselEnvironment) -> list[dict]:
 
 
 def fuel_estimate_points(engine: EngineSimulator, env: VesselEnvironment) -> list[dict]:
-    """Fuel economy (nm/gal) and estimated range (nm) — see module docstring
-    for why these are computed here instead of in a Grafana Flux join."""
+    """Fuel economy (MPG, statute) and estimated range (statute miles) — see
+    module docstring for why these are computed here instead of in a Grafana
+    Flux join. Statute miles/MPG rather than nm/gal to match OC-002's
+    speedOverGround spec, which is given in mph."""
     gph = engine.fuel_rate_lph_value / 3.785411784
-    economy_nm_per_gal = env.speed_kn / gph if gph > 0.05 else 0.0
+    mpg = env.speed_mph / gph if gph > 0.05 else 0.0
 
     remaining_l = max(0.0, TANK_CAPACITY_L - engine.fuel_used_l)
     remaining_gal = remaining_l / 3.785411784
-    range_nm = remaining_gal * economy_nm_per_gal
+    range_mi = remaining_gal * mpg
 
     return [
         {
             "measurement": "propulsion",
             "tags": {"instance": engine.instance},
             "fields": {
-                "fuel.economy": economy_nm_per_gal,
-                "fuel.range": range_nm,
+                "fuel.economy": mpg,
+                "fuel.range": range_mi,
             },
         }
     ]

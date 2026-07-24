@@ -6,7 +6,7 @@
   "style": "dark",
   "editable": true,
   "schemaVersion": 39,
-  "version": 1,
+  "version": 3,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "templating": {
@@ -18,9 +18,8 @@
         "datasource": { "type": "influxdb", "uid": "influxdb" },
         "query": "import \"influxdata/influxdb/schema\"\n\nschema.tagValues(bucket: v.defaultBucket, tag: \"instance\", predicate: (r) => r._measurement == \"propulsion\")",
         "refresh": 1,
-        "multi": true,
-        "includeAll": true,
-        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "multi": false,
+        "includeAll": false,
         "sort": 1
       }
     ]
@@ -28,17 +27,46 @@
   "panels": [
     {
       "id": 1,
-      "type": "row",
-      "title": "Engine",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"notifications\" and r._field == \"severity\")\n  |> last()\n  |> group()\n  |> max()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "text": { "valueSize": 18 }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "SYSTEMS NORMAL", "color": "#0ca30c" },
+                "1": { "text": "WARNING — CHECK GAUGES", "color": "#fab219" },
+                "2": { "text": "ALARM — CHECK ENGINE", "color": "#d03b3b" }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      }
     },
     {
       "id": 2,
       "type": "gauge",
-      "title": "RPM",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 10, "x": 0, "y": 1 },
+      "title": "RPM (${engine})",
+      "gridPos": { "h": 14, "w": 11, "x": 0, "y": 3 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -50,7 +78,8 @@
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "orientation": "auto",
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "text": { "valueSize": 56 }
       },
       "fieldConfig": {
         "defaults": {
@@ -60,9 +89,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 4000, "color": "orange" },
-              { "value": 4600, "color": "red" }
+              { "value": null, "color": "#0ca30c" },
+              { "value": 4000, "color": "#fab219" },
+              { "value": 4600, "color": "#d03b3b" }
             ]
           }
         },
@@ -71,11 +100,39 @@
     },
     {
       "id": 3,
+      "type": "stat",
+      "title": "SPEED",
+      "gridPos": { "h": 14, "w": 11, "x": 13, "y": 3 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"navigation\" and r._field == \"speedOverGround\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 2.23694 }))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "text": { "valueSize": 100 }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitymph",
+          "decimals": 1,
+          "color": { "mode": "fixed", "fixedColor": "#3987e5" },
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
       "type": "gauge",
       "title": "Engine Temperature",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 7, "x": 10, "y": 1 },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 17 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -97,9 +154,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 194, "color": "orange" },
-              { "value": 208, "color": "red" }
+              { "value": null, "color": "#0ca30c" },
+              { "value": 194, "color": "#fab219" },
+              { "value": 208, "color": "#d03b3b" }
             ]
           }
         },
@@ -107,12 +164,10 @@
       }
     },
     {
-      "id": 4,
+      "id": 5,
       "type": "gauge",
       "title": "Oil Pressure",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 7, "x": 17, "y": 1 },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 17 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -134,9 +189,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "red" },
-              { "value": 14.5, "color": "orange" },
-              { "value": 20.3, "color": "green" }
+              { "value": null, "color": "#d03b3b" },
+              { "value": 14.5, "color": "#fab219" },
+              { "value": 20.3, "color": "#0ca30c" }
             ]
           }
         },
@@ -144,109 +199,10 @@
       }
     },
     {
-      "id": 5,
-      "type": "stat",
-      "title": "Fuel Flow",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 9 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
-      "targets": [
-        {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"fuel.rate\" and r.instance == \"${engine}\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 3600.0 * 264.172 }))",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "textMode": "auto"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix: GPH",
-          "decimals": 1,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 6,
       "type": "stat",
-      "title": "Engine Hours",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 9 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
-      "targets": [
-        {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"runTime\" and r.instance == \"${engine}\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value / 3600.0 }))",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "textMode": "auto"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix: hrs",
-          "decimals": 1,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 7,
-      "type": "gauge",
-      "title": "Trim Position",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 9 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
-      "targets": [
-        {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"trim\" and r.instance == \"${engine}\")\n  |> last()",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "value": null, "color": "blue" }]
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 8,
-      "type": "row",
-      "title": "Vessel",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }
-    },
-    {
-      "id": 9,
-      "type": "stat",
       "title": "Battery Voltage",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 17 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -268,9 +224,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "red" },
-              { "value": 11.5, "color": "orange" },
-              { "value": 12.0, "color": "green" }
+              { "value": null, "color": "#d03b3b" },
+              { "value": 11.5, "color": "#fab219" },
+              { "value": 12.0, "color": "#0ca30c" }
             ]
           }
         },
@@ -278,10 +234,69 @@
       }
     },
     {
-      "id": 10,
+      "id": 7,
+      "type": "stat",
+      "title": "Fuel Flow",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 17 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"fuel.rate\" and r.instance == \"${engine}\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 3600.0 * 264.172 }))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: GPH",
+          "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "gauge",
+      "title": "Trim Position",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"trim\" and r.instance == \"${engine}\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "value": null, "color": "#199e70" }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
       "type": "stat",
       "title": "Depth",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -300,44 +315,35 @@
         "defaults": {
           "unit": "lengthft",
           "decimals": 1,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#199e70" }] }
         },
         "overrides": []
       }
     },
     {
-      "id": 11,
+      "id": 10,
       "type": "stat",
-      "title": "Alarm Banner",
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 22 },
+      "title": "Engine Hours",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"notifications\" and r._field == \"severity\")\n  |> last()\n  |> group()\n  |> max()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"runTime\" and r.instance == \"${engine}\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value / 3600.0 }))",
           "refId": "A"
         }
       ],
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "text": { "valueSize": 28 }
+        "justifyMode": "auto",
+        "textMode": "auto"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": { "text": "ALL SYSTEMS NORMAL", "color": "green" },
-                "1": { "text": "WARNING", "color": "orange" },
-                "2": { "text": "ALARM", "color": "red" }
-              }
-            }
-          ]
+          "unit": "suffix: hrs",
+          "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
         },
         "overrides": []
       }

@@ -6,7 +6,7 @@
   "style": "dark",
   "editable": true,
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "templating": {
@@ -18,27 +18,18 @@
         "datasource": { "type": "influxdb", "uid": "influxdb" },
         "query": "import \"influxdata/influxdb/schema\"\n\nschema.tagValues(bucket: v.defaultBucket, tag: \"instance\", predicate: (r) => r._measurement == \"propulsion\")",
         "refresh": 1,
-        "multi": true,
-        "includeAll": true,
-        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "multi": false,
+        "includeAll": false,
         "sort": 1
       }
     ]
   },
   "panels": [
     {
-      "id": 1,
-      "type": "row",
-      "title": "Engine",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
-    },
-    {
       "id": 2,
       "type": "stat",
       "title": "Fuel Flow",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -57,7 +48,7 @@
         "defaults": {
           "unit": "suffix: GPH",
           "decimals": 1,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
         },
         "overrides": []
       }
@@ -66,9 +57,7 @@
       "id": 3,
       "type": "stat",
       "title": "Fuel Economy",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 1 },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -85,9 +74,9 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "suffix: nm/gal",
+          "unit": "suffix: MPG",
           "decimals": 2,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
         },
         "overrides": []
       }
@@ -96,9 +85,7 @@
       "id": 4,
       "type": "stat",
       "title": "Fuel Used",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -117,7 +104,7 @@
         "defaults": {
           "unit": "suffix: gal",
           "decimals": 2,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
         },
         "overrides": []
       }
@@ -126,9 +113,7 @@
       "id": 5,
       "type": "stat",
       "title": "Estimated Range",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -145,9 +130,9 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "suffix: nm",
+          "unit": "suffix: mi",
           "decimals": 0,
-          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "green" }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "#3987e5" }] }
         },
         "overrides": []
       }

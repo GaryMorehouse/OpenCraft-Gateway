@@ -155,15 +155,39 @@ class EngineSimulator:
         return self.fuel_used_l / 1000.0
 
 
-def _target_speed_kn(throttle: float) -> float:
-    # Displacement speed up to ~7kn below the planing threshold, then the
-    # hull comes up on plane and speed rises quickly toward WOT — a rough
-    # but recognizable planing-hull curve, not a straight line with throttle.
-    planing_threshold = 0.35
-    if throttle < planing_threshold:
-        return (throttle / planing_threshold) * 7.0
-    planing_fraction = (throttle - planing_threshold) / (1.0 - planing_threshold)
-    return 7.0 + planing_fraction * 31.0
+# (rpm, speed_mph) control points — midpoints of the OC-002 spec ranges:
+#   idle 650rpm -> 0-3mph, slow cruise 1500rpm -> 5-8mph, plane 3000rpm -> 22-28mph,
+#   cruise 3400rpm -> 28-32mph, WOT 4800rpm -> 42-46mph. Piecewise-linear through
+#   these points, eased over time in VesselEnvironment.step — this is what gives
+#   the planing-hull "slow rise, steep transition, flatten out" shape without
+#   needing a curve-fit, and keeps the simulator's behavior directly traceable
+#   to the spec that requested it.
+_SPEED_CURVE_RPM_MPH = [(0.0, 0.0), (650.0, 1.5), (1500.0, 6.5), (3000.0, 25.0), (3400.0, 30.0), (4800.0, 44.0)]
+
+# Trim affects speed at a given RPM: too little trim (bow down, more wetted
+# hull) or too much (over-trimmed, prop ventilating) both cost speed relative
+# to the sweet spot. Mild effect — this is a boat, not a race hull.
+_TRIM_SWEET_SPOT = 0.65
+_TRIM_SPEED_PENALTY = 0.3
+
+
+def _base_target_speed_mph(rpm: float) -> float:
+    points = _SPEED_CURVE_RPM_MPH
+    if rpm <= points[0][0]:
+        return points[0][1]
+    for (r0, s0), (r1, s1) in zip(points, points[1:]):
+        if rpm <= r1:
+            fraction = (rpm - r0) / (r1 - r0)
+            return s0 + fraction * (s1 - s0)
+    return points[-1][1]
+
+
+def _trim_speed_factor(trim_ratio: float) -> float:
+    return max(0.85, 1.0 - _TRIM_SPEED_PENALTY * abs(trim_ratio - _TRIM_SWEET_SPOT))
+
+
+def _target_speed_mph(rpm: float, trim_ratio: float) -> float:
+    return _base_target_speed_mph(rpm) * _trim_speed_factor(trim_ratio)
 
 
 class VesselEnvironment:
@@ -175,9 +199,9 @@ class VesselEnvironment:
         self._target = 12.0
         self._hold_until = 0.0
         self._t = 0.0
-        self.speed_kn = 0.0
+        self.speed_mph = 0.0
 
-    def step(self, dt: float, propulsion_throttle: float = 0.0) -> None:
+    def step(self, dt: float, propulsion_rpm: float = IDLE_RPM, propulsion_trim: float = 0.0) -> None:
         self._t += dt
         if self._t >= self._hold_until:
             self._target = self._rng.uniform(2.0, 40.0)
@@ -185,9 +209,12 @@ class VesselEnvironment:
         self.depth_m = _ease(self.depth_m, self._target, dt, tau=20.0) + self._rng.uniform(-0.1, 0.1)
 
         # Hull acceleration is slower than engine spool-up but faster than
-        # thermal response — tau chosen between the two.
-        self.speed_kn = _ease(self.speed_kn, _target_speed_kn(propulsion_throttle), dt, tau=15.0)
+        # thermal response — tau chosen between the two. No random noise here
+        # (unlike depth): speed should move smoothly and only with RPM/trim,
+        # per the OC-002 spec ("avoid random values").
+        target = _target_speed_mph(propulsion_rpm, propulsion_trim)
+        self.speed_mph = _ease(self.speed_mph, target, dt, tau=12.0)
 
     @property
     def speed_over_ground_ms(self) -> float:
-        return self.speed_kn * 0.514444
+        return self.speed_mph * 0.44704

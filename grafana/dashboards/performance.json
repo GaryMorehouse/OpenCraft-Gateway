@@ -6,7 +6,7 @@
   "style": "dark",
   "editable": true,
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "templating": {
@@ -18,27 +18,18 @@
         "datasource": { "type": "influxdb", "uid": "influxdb" },
         "query": "import \"influxdata/influxdb/schema\"\n\nschema.tagValues(bucket: v.defaultBucket, tag: \"instance\", predicate: (r) => r._measurement == \"propulsion\")",
         "refresh": 1,
-        "multi": true,
-        "includeAll": true,
-        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "multi": false,
+        "includeAll": false,
         "sort": 1
       }
     ]
   },
   "panels": [
     {
-      "id": 1,
-      "type": "row",
-      "title": "Engine",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
-    },
-    {
       "id": 2,
       "type": "timeseries",
       "title": "RPM",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -56,9 +47,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "Engine Temperature",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -76,9 +65,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "Oil Pressure",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -96,9 +83,7 @@
       "id": 5,
       "type": "timeseries",
       "title": "Fuel Flow",
-      "repeat": "engine",
-      "repeatDirection": "h",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
@@ -113,16 +98,10 @@
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
     },
     {
-      "id": 6,
-      "type": "row",
-      "title": "Vessel",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }
-    },
-    {
       "id": 7,
       "type": "timeseries",
       "title": "Battery Voltage",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {

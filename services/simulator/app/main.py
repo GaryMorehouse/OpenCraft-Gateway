@@ -44,8 +44,9 @@ def main() -> None:
                 points.extend(signalk.engine_points(engine))
                 points.extend(signalk.electrical_points(engine))
 
-            avg_throttle = sum(e.throttle for e in engines) / len(engines)
-            environment.step(config.tick_seconds, propulsion_throttle=avg_throttle)
+            avg_rpm = sum(e.rpm for e in engines) / len(engines)
+            avg_trim = sum(e.trim_ratio for e in engines) / len(engines)
+            environment.step(config.tick_seconds, propulsion_rpm=avg_rpm, propulsion_trim=avg_trim)
             points.extend(signalk.environment_points(environment))
             points.extend(signalk.navigation_points(environment))
 
