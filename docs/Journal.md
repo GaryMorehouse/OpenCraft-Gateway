@@ -86,3 +86,15 @@
 - All of the above verified end-to-end: rebuilt the simulator, confirmed
   the new speed curve hits the spec's exact values, and visually confirmed
   every redesigned/new dashboard in a live browser against real data.
+
+## 2026-07-24 — M1: Hardware bring-up complete
+
+- Raspberry Pi Zero 2 W configured; SSH operational; SPI enabled.
+- Waveshare 2-Channel CAN HAT installed; both MCP2515 controllers detected.
+- `can0` and `can1` both verified operational at 250000 bit/s.
+- CAN utilities installed and working; development environment prepared
+  for SmartCraft testing.
+- This is documentation/hardware work only — no application code or
+  architecture changed. See docs/Hardware.md for details.
+- Next: M2 — capture live SmartCraft CAN traffic via a SmartCraft
+  extension cable and `candump`.

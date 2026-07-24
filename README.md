@@ -18,6 +18,20 @@ The goal is to bridge SmartCraft engine data to modern marine systems including:
 
 Full parts list: [hardware/bom/BOM.md](hardware/bom/BOM.md)
 
+### Hardware Bring-up Status — M1 (complete)
+
+- [x] Raspberry Pi Zero 2 W configured
+- [x] SSH operational
+- [x] SPI enabled
+- [x] Waveshare 2-Channel CAN HAT installed
+- [x] Both MCP2515 controllers detected
+- [x] can0 verified operational at 250000 bit/s
+- [x] can1 verified operational at 250000 bit/s
+- [x] CAN utilities installed and working
+- [x] Development environment prepared for SmartCraft testing
+
+Details: [docs/Hardware.md](docs/Hardware.md)
+
 ## Quick start (Development profile)
 
 ```sh
@@ -29,8 +43,10 @@ Grafana: http://localhost:3000 — see [docs/Software.md](docs/Software.md) for 
 
 ## Project Status
 
-🚧 Early Development — OC-001 (Grafana dashboard prototype against simulated
-engine data) in progress. No SmartCraft/CAN/MQTT code yet.
+🚧 Early Development — M1 (hardware bring-up) complete: dual CAN interfaces
+verified operational on the Pi Zero 2 W. Dashboard prototype (OC-001/OC-002)
+also in place against simulated engine data. No SmartCraft decoding or MQTT
+application code yet — that's M2.
 
 ## Documentation
 
@@ -42,7 +58,8 @@ engine data) in progress. No SmartCraft/CAN/MQTT code yet.
 
 - [x] Repository, Raspberry Pi, and project structure set up
 - [x] Dashboard prototype against simulated telemetry (OC-001)
-- [ ] Capture SmartCraft traffic
+- [x] M1 — Hardware bring-up: dual CAN interfaces verified operational
+- [ ] M2 — Capture live SmartCraft CAN traffic (SmartCraft extension cable + candump)
 - [ ] Decode RPM
 - [ ] Decode Engine Temp
 - [ ] Decode Trim
