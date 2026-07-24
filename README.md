@@ -52,6 +52,7 @@ application code yet — that's M2.
 
 - [Architecture](docs/Architecture.md)
 - [Software](docs/Software.md)
+- [Milestones](docs/Milestones.md)
 - [Architecture Decision Records](docs/adr/)
 
 ## Roadmap
