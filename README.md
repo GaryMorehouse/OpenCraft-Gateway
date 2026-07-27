@@ -1,12 +1,16 @@
 # OpenCraft Gateway
 
-An open-source SmartCraft gateway for MerCruiser engines.
-The goal is to bridge SmartCraft engine data to modern marine systems including:
+An open-source SmartCraft gateway for MerCruiser engines that goes beyond
+monitoring — it helps owners maintain their boats, not just watch gauges.
+Bridges SmartCraft engine data to modern marine systems including:
 
 - Signal K
 - MQTT
 - Grafana
 - Future NMEA 2000 support
+
+Full capability list, including the Intelligent Maintenance Manager:
+[docs/FEATURES.md](docs/FEATURES.md).
 
 ## Hardware
 
@@ -50,6 +54,8 @@ application code yet — that's M2.
 
 ## Documentation
 
+- [Features](docs/FEATURES.md) — the full capability list/product spec
+- [Project Vision](docs/ProjectVision.md)
 - [Architecture](docs/Architecture.md)
 - [Software](docs/Software.md)
 - [Milestones](docs/Milestones.md)
@@ -59,7 +65,9 @@ application code yet — that's M2.
 
 - [x] Repository, Raspberry Pi, and project structure set up
 - [x] Dashboard prototype against simulated telemetry (OC-001)
+- [x] Premium Helm Display redesign + GPS speed (OC-002)
 - [x] M1 — Hardware bring-up: dual CAN interfaces verified operational
+- [x] OC-003 — Maintenance Manager & Boat Health documented as a core module (see docs/FEATURES.md)
 - [ ] M2 — Capture live SmartCraft CAN traffic (SmartCraft extension cable + candump)
 - [ ] Decode RPM
 - [ ] Decode Engine Temp
@@ -67,3 +75,4 @@ application code yet — that's M2.
 - [ ] Publish MQTT
 - [ ] Signal K Integration
 - [ ] NMEA 2000 Gateway
+- [ ] Implement Maintenance Manager (data store + service — design TBD, see ADR 0005)

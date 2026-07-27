@@ -154,6 +154,40 @@ single-engine scope, not a schema limitation — see
    The Alarm Banner panel takes `max()` of `severity` across all
    notification paths to summarize vessel-wide alarm state in one number.
 
+## Maintenance Manager (planned, OC-003)
+
+Full feature spec: [FEATURES.md](FEATURES.md). Rationale for treating it as
+a core module rather than an add-on: [ADR 0005](adr/0005-maintenance-manager-first-class.md).
+
+This section exists to flag the architectural shape of the problem before
+implementation starts — nothing here is a locked decision.
+
+**It doesn't fit the current telemetry pipeline as-is.** Everything built
+so far (simulator/gateway → InfluxDB → Grafana) is a one-directional,
+mostly-read pipeline: data flows in, Grafana renders it. Maintenance
+Manager needs the opposite of that in places — a startup reminder that
+"persists until acknowledged" is interactive state that something has to
+own and mutate, and Grafana is a visualization layer, not an
+interaction/state-management tool. This points toward Maintenance Manager
+needing its own small service and UI, not just more Grafana panels — but
+that's a design question for the implementation milestone, not decided
+here.
+
+**It probably needs a different datastore.** InfluxDB (ADR 0002) is
+built for time-series telemetry. Maintenance items, schedules, logs, and
+checklist completions are relational/document data — closer to a handful
+of tables than a time series. A lightweight relational store (SQLite is
+the obvious default for a Pi-class device, consistent with ADR 0003's
+resource constraints) is the likely direction, but this is explicitly
+**not decided** — OC-003 is documentation/architecture scoping only.
+
+**One integration point already exists.** Engine-hour maintenance
+intervals can be sourced directly from `propulsion.<instance>.runTime`,
+which is already flowing through InfluxDB today (ADR 0001) — no new
+telemetry is needed for that part. Calendar-based intervals need no
+telemetry integration at all, just date math against whatever store holds
+the maintenance schedule.
+
 ## Design goals
 
 - Modular

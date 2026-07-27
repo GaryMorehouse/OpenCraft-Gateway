@@ -98,3 +98,32 @@
   architecture changed. See docs/Hardware.md for details.
 - Next: M2 — capture live SmartCraft CAN traffic via a SmartCraft
   extension cable and `candump`.
+
+## 2026-07-27 — Repository reconciliation, OC-003 (Maintenance Manager docs)
+
+- Reconciled the Pi's stale git clone (6 commits behind) with `origin/main`
+  and resolved a real filename bug: `docs/ProjectVison.md` (typo, missing
+  the "i") had been an empty 0-byte placeholder since the project's very
+  first commit, while the actual Project Vision content had been written
+  to a correctly-spelled `docs/ProjectVision.md` that was never committed
+  — sitting untracked on the Pi since 2026-07-17. Verified by MD5 before
+  and after every transfer, backed up before any destructive step, only
+  removed the empty file after confirming zero data loss. Pi, local clone,
+  and `origin/main` now all match.
+- OC-003: documented the Intelligent Maintenance Manager as a first-class
+  OpenCraft module — design philosophy (never assume the owner is a
+  mechanic; every reminder answers what/why/what's-next), core features,
+  Boat Health, guided maintenance, and operational checklists (explicitly
+  separate from maintenance; the trailer gets a checklist reminder line,
+  not a maintained-subsystem entry). See ADR 0005.
+- Introduced `docs/FEATURES.md` as the master capability list/product spec
+  (Helm Display, SmartCraft Gateway, Signal K, Maintenance Manager, AI
+  Assistant, Checklists, Notifications, Remote Monitoring, Analytics),
+  each tagged with an honest current status. README now stays a short
+  introduction and links there instead of accumulating feature detail.
+- Flagged in Architecture.md, not decided: Maintenance Manager's
+  "persists until acknowledged" state doesn't fit the current read-mostly
+  Grafana/InfluxDB pipeline, and its data (schedules, logs, checklists) is
+  relational, not time-series — likely needs its own service and a
+  different datastore (SQLite is the probable default). Documentation and
+  architecture scoping only, per OC-003 — no code changed.
