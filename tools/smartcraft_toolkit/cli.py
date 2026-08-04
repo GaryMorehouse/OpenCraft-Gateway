@@ -1,10 +1,13 @@
 """Command-line interface for the SmartCraft protocol-analysis toolkit.
 
 Subcommands:
-    decode   parse candump -L log(s), reconstruct packets, write JSON/CSV
-    pretty   parse and print a human-readable packet dump
-    compare  compare byte-level behavior between two logs (e.g. idle vs 2500 RPM)
-    heatmap  show per-byte change rates within a single log
+    decode      parse candump -L log(s), reconstruct packets, write JSON/CSV
+    pretty      parse and print a human-readable packet dump
+    compare     compare byte-level behavior between two logs (e.g. idle vs 2500 RPM)
+    heatmap     show per-byte change rates within a single log
+    hypotheses  Phase 2: score every registered experiment's evidence against
+                named signal hypotheses (RPM, coolant, oil pressure, ...) and
+                render the candidate report + Current Protocol Map
 """
 from __future__ import annotations
 
@@ -15,6 +18,7 @@ from typing import List, Optional, Sequence
 
 from .compare import compare_logs, compute_byte_stats
 from .exporters import export_csv_atomic, export_csv_packets, export_json
+from .hypothesis_report import render_full_report, run_analysis
 from .pretty import format_packets
 from .reconstruct import AtomicMessage, LogicalPacket, reconstruct
 from .report import render_comparison_report, render_heatmap_report
@@ -110,6 +114,18 @@ def cmd_heatmap(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_hypotheses(args: argparse.Namespace) -> int:
+    all_results, map_entries = run_analysis()
+    report = render_full_report(all_results, map_entries)
+
+    if args.report:
+        Path(args.report).write_text(report, encoding="utf-8")
+        print(f"wrote {args.report}")
+    else:
+        print(report)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="smartcraft_decoder",
@@ -144,6 +160,13 @@ def build_parser() -> argparse.ArgumentParser:
     heatmap.add_argument("--report", metavar="PATH", help="write the Markdown report to PATH instead of stdout")
     heatmap.add_argument("--ids", nargs="+", metavar="ID", help="only include these CAN IDs (hex)")
     heatmap.set_defaults(handler=cmd_heatmap)
+
+    hypotheses = subparsers.add_parser(
+        "hypotheses",
+        help="score registered experiments against named signal hypotheses (Phase 2)",
+    )
+    hypotheses.add_argument("--report", metavar="PATH", help="write the Markdown report to PATH instead of stdout")
+    hypotheses.set_defaults(handler=cmd_hypotheses)
 
     return parser
 

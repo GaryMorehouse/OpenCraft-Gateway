@@ -48,11 +48,11 @@ These describe frame *structure*, not meaning — see the rule above.
 |---|---|---|---|
 | `170` | fragmented | `00`-`06`, `FF` | |
 | `1A0` | fragmented | `00`-`0C`, `FF` | |
-| `1FFD4041` | fragmented | extended (29-bit) ID | |
 | `1E0` | fragmented | `00`-`17`, `FF` | |
 | `1F0` | fragmented | `00`, `01`, `FF` | |
-| `00000B41` | atomic (single-frame) | — | first byte constant in samples so far |
-| `0000410B` | atomic (single-frame) | — | first byte constant in samples so far |
+| `1FFD4041` | **uncertain** (extended/29-bit ID) | `02`-`05` only | never shows `00`, `01`, or `FF` in any capture -- classify_ids therefore treats it as atomic (no confirmed terminator), but it does cycle through 4 distinct leading-byte values, so it may use a different framing convention entirely. Phase 2's candidate scan groups it by leading byte anyway (see `signals.py`) without asserting it fragments the same way 170 does. |
+| `00000B41` | atomic (single-frame) | — | 3-byte payload; first byte constant (`0x83`) in samples so far |
+| `0000410B` | atomic (single-frame) | — | 1-byte payload; constant (`0x01`) in samples so far |
 | `0E3792F3` | atomic (single-frame) | — | seen only in `smartcrafttest.log`, not in the small committed samples; payload constant in that capture |
 
 "Fragmented" here means `smartcraft_decoder.py` detected the record-number /
@@ -60,10 +60,39 @@ These describe frame *structure*, not meaning — see the rule above.
 `tools/smartcraft_toolkit/reconstruct.py::classify_ids`) — it isn't
 hardcoded per ID.
 
+## Phase 2: hypothesis generation
+
+Phase 1 (above) finds bytes that changed; it doesn't say what they might
+mean. Phase 2 (`smartcraft_decoder.py hypotheses`) goes one step further:
+it scores every candidate byte/word against six named signal theories (RPM,
+Coolant Temperature, Oil Pressure, Raw Water Pressure, Battery Voltage,
+Fuel Level/Depth) using only generic, evidence-based shape tests (does it
+track commanded RPM, does it drift across the session, does it stay in a
+narrow band, does it look like a counter, ...) -- never a hardcoded
+CAN ID or byte answer. Every result carries a confidence score, evidence for
+and against, and a suggested experiment that would move that confidence in
+either direction. See [tools/README.md](../tools/README.md#hypotheses-phase-2)
+for the mechanics and [docs/HypothesisReport.md](HypothesisReport.md) for the
+current generated report and Current Protocol Map (every observed byte
+bucketed by evidence, not asserted).
+
+**Confidence values are meant to move as more captures are collected.**
+Adding a real trim cycle, key cycle, or RPM step test means adding one entry
+to `tools/smartcraft_toolkit/experiments.py` and re-running the command --
+nothing else needs to change.
+
 ## Sample data
 
 Five short real captures (idle and three RPM points) are committed under
 [tools/samples/logs/](../tools/samples/logs/) as test fixtures / usage
-examples. The larger captures (`key-cycle`, `rpm-steps`, `smartcrafttest`,
-`trim-cycles`, 5-10MB each) are kept locally rather than committed to the
-repo.
+examples, and are also the experiments Phase 2 currently scores against.
+
+A separate, ~18-hours-earlier capture session also exists on disk
+(`key-cycle.log`, `rpm-steps.log`, `smartcrafttest.log`, `trim-cycles.log`,
+5-10MB each) but was found, on inspection, to contain no real signal at all
+-- every one of those four files is a single CAN frame retransmitted
+100,000+ times with no other content, consistent with a Listen-Only capture
+against a bus with no other node available to ACK it. They are not
+committed and are excluded from Phase 2's analysis. Re-capturing a real
+trim cycle, key cycle, and RPM step test is open follow-up work -- see the
+Data Quality section of [docs/HypothesisReport.md](HypothesisReport.md).

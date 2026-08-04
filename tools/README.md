@@ -1,14 +1,19 @@
-# SmartCraft Decoder (Phase 1 — Protocol Analysis)
+# SmartCraft Decoder (Phase 1 + 2 — Protocol Analysis & Hypothesis Generation)
 
 A protocol-agnostic tool for reconstructing and analyzing Mercury SmartCraft
 CAN traffic from `candump -L` captures, so the protocol can be reverse
 engineered from evidence rather than guessed.
 
-**This tool does not decode SmartCraft.** It never labels a byte as RPM,
-trim, temperature, etc. It only reconstructs fragmented CAN messages,
-timestamps them, and reports which bytes changed and which didn't — the raw
-material for reverse engineering. See [docs/ReverseEngineering.md](../docs/ReverseEngineering.md)
-for the workflow this feeds into.
+**This tool does not decode SmartCraft.** It never *asserts* that a byte is
+RPM, trim, temperature, etc. Phase 1 (`decode`/`pretty`/`compare`/`heatmap`)
+reconstructs fragmented CAN messages and reports which bytes changed and
+which didn't. Phase 2 (`hypotheses`) goes one step further and scores named
+signal theories (RPM, coolant, oil pressure, ...) against the evidence in
+registered capture experiments — but every result is a confidence-scored
+theory with stated evidence for and against it, never a conclusion. See
+[docs/ReverseEngineering.md](../docs/ReverseEngineering.md) for the workflow
+this feeds into and [docs/HypothesisReport.md](../docs/HypothesisReport.md)
+for the current generated report.
 
 ## Background
 
@@ -48,10 +53,14 @@ python tools/smartcraft_decoder.py compare idle.log 2500.log --report diff.md
 
 # Per-byte change-rate heat map within a single log
 python tools/smartcraft_decoder.py heatmap capture.log --report heatmap.md
+
+# Phase 2: score every registered experiment against named signal hypotheses
+python tools/smartcraft_decoder.py hypotheses --report docs/HypothesisReport.md
 ```
 
-All four subcommands accept `--ids 170 1A0` to restrict analysis to specific
-CAN IDs (hex, case-insensitive).
+The four Phase 1 subcommands accept `--ids 170 1A0` to restrict analysis to
+specific CAN IDs (hex, case-insensitive). `hypotheses` doesn't take log
+arguments — it reads whatever is registered in `experiments.py` (see below).
 
 ### `decode`
 
@@ -102,22 +111,55 @@ distinct values observed. A byte that's "never changed" across an entire log
 is very unlikely to be an engine signal; a byte that changes on almost every
 frame is a strong candidate for something like RPM.
 
+### `hypotheses` (Phase 2)
+
+Scores every candidate byte/word (single bytes, plus adjacent byte pairs in
+both endians) across every experiment registered in
+`smartcraft_toolkit/experiments.py` against six named hypotheses — RPM,
+Coolant Temperature, Oil Pressure, Raw Water Pressure, Battery Voltage, and
+Fuel Level/Depth (the last two are reported jointly since nothing in the
+current experiments can tell them apart). Trim is deliberately not scored:
+the only capture meant to exercise it turned out to contain no real signal
+(see the report's Data Quality section) — that's reported as "not yet
+testable," not as a low score.
+
+Every scoring rule lives in `hypotheses.py` and is a short, fixed, documented
+point rubric built only from the generic features in `signals.py`
+(correlation with commanded RPM, stability within a steady-state capture,
+drift across the session, dynamic range used, counter-like monotonicity,
+...). No rule looks at a specific CAN ID or byte offset — the same six
+rubrics run against every candidate. Confidence values are meant to move as
+more experiments are added: register a new capture in `experiments.py` and
+re-run.
+
+The same output also drives the **Current Protocol Map**, which buckets
+*every* observed single byte into one of: a named "Likely `<Signal>`" tag
+(if some hypothesis scored above a threshold), `Likely counters`,
+`Likely status bits`, `Likely padding/reserved`, `Likely fuel/depth
+(near-constant analog)`, or `Unknown`.
+
 ## Design
 
 ```
 smartcraft_toolkit/
-  parser.py       candump -L line parsing -> Frame
-  reconstruct.py  per-ID fragmentation detection + logical-packet assembly
-  compare.py      per-byte value/​change-rate statistics, two-log comparison
-  report.py       Markdown rendering for compare/heatmap
-  exporters.py    JSON/CSV writers
-  pretty.py       human-readable packet dump
-  cli.py          argparse subcommands
+  parser.py             candump -L line parsing -> Frame
+  reconstruct.py         per-ID fragmentation detection + logical-packet assembly (Phase 1)
+  compare.py              per-byte value/​change-rate statistics, two-log comparison (Phase 1)
+  report.py                Markdown rendering for compare/heatmap (Phase 1)
+  exporters.py             JSON/CSV writers (Phase 1)
+  pretty.py                 human-readable packet dump (Phase 1)
+  experiments.py             Phase 2 experiment manifest (which logs, which condition)
+  signals.py                  Phase 2 generic candidate extraction + statistical features
+  hypotheses.py                 Phase 2 named-signal scoring rubrics
+  protocol_map.py                Phase 2 per-byte categorization
+  hypothesis_report.py            Phase 2 orchestration + Markdown rendering
+  cli.py                            argparse subcommands
 ```
 
 Nothing in this package hardcodes a CAN ID or a byte meaning. Fragmentation
-detection, byte-change statistics, and comparison verdicts are all derived
-from the frames actually present in the log(s) given to it.
+detection, byte-change statistics, comparison verdicts, and hypothesis
+confidence are all derived from the frames actually present in whatever
+log(s)/experiments are given to it.
 
 ## Tests
 

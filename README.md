@@ -24,12 +24,15 @@ Current milestone:
 - ✅ Generic SmartCraft packet reconstruction framework complete
 - ✅ Automated regression tests
 - ✅ Protocol analysis toolkit
+- ✅ Evidence-based signal hypothesis engine (confidence-scored theories, not decoded values)
 
-Protocol decoding is currently in progress — see
-[docs/ReverseEngineering.md](docs/ReverseEngineering.md). No SmartCraft
-byte has been decoded/labeled yet (no RPM, temperature, trim, etc.); the
-dashboard/Grafana experience runs against simulated data until real
-decoded signals replace it.
+Protocol decoding itself has not started — see
+[docs/ReverseEngineering.md](docs/ReverseEngineering.md) and the current
+[Hypothesis Report](docs/HypothesisReport.md). No SmartCraft byte has been
+decoded/labeled yet (no RPM, temperature, trim, etc.), only scored
+candidate theories with stated confidence and evidence; the dashboard/
+Grafana experience runs against simulated data until real decoded signals
+replace it.
 
 ## Hardware
 
@@ -71,6 +74,7 @@ Grafana: http://localhost:3000 — see [docs/Software.md](docs/Software.md) for 
 - [Architecture](docs/Architecture.md)
 - [Software](docs/Software.md)
 - [Reverse Engineering](docs/ReverseEngineering.md) — SmartCraft protocol analysis workflow
+- [Hypothesis Report](docs/HypothesisReport.md) — Phase 2: confidence-scored signal theories + Current Protocol Map
 - [Milestones](docs/Milestones.md)
 - [Architecture Decision Records](docs/adr/)
 
@@ -83,6 +87,8 @@ Grafana: http://localhost:3000 — see [docs/Software.md](docs/Software.md) for 
 - [x] OC-003 — Maintenance Manager & Boat Health documented as a core module (see docs/FEATURES.md)
 - [x] M2 — Capture live SmartCraft CAN traffic (SmartCraft extension cable + candump)
 - [x] SmartCraft protocol analysis tool — reconstruction, compare, heat map (`tools/smartcraft_decoder.py`, see [docs/ReverseEngineering.md](docs/ReverseEngineering.md))
+- [x] Phase 2 — evidence-based signal hypothesis engine + Current Protocol Map (see [docs/HypothesisReport.md](docs/HypothesisReport.md))
+- [ ] Re-capture a real trim cycle, key cycle, and RPM step test (current attempts at these three contained no usable signal — see Hypothesis Report Data Quality)
 - [ ] Decode RPM
 - [ ] Decode Engine Temp
 - [ ] Decode Trim
