@@ -12,6 +12,25 @@ Bridges SmartCraft engine data to modern marine systems including:
 Full capability list, including the Intelligent Maintenance Manager:
 [docs/FEATURES.md](docs/FEATURES.md).
 
+## Project Status
+
+OpenCraft Gateway is an open-source SmartCraft protocol research and
+gateway project.
+
+Current milestone:
+
+- ✅ Raspberry Pi CAN capture operational
+- ✅ SmartCraft traffic successfully captured
+- ✅ Generic SmartCraft packet reconstruction framework complete
+- ✅ Automated regression tests
+- ✅ Protocol analysis toolkit
+
+Protocol decoding is currently in progress — see
+[docs/ReverseEngineering.md](docs/ReverseEngineering.md). No SmartCraft
+byte has been decoded/labeled yet (no RPM, temperature, trim, etc.); the
+dashboard/Grafana experience runs against simulated data until real
+decoded signals replace it.
+
 ## Hardware
 
 - Raspberry Pi Zero 2 W — SmartCraft/CAN capture and prototyping only, see
@@ -45,13 +64,6 @@ docker compose --profile dev up -d --build
 
 Grafana: http://localhost:3000 — see [docs/Software.md](docs/Software.md) for details.
 
-## Project Status
-
-🚧 Early Development — M1 (hardware bring-up) complete: dual CAN interfaces
-verified operational on the Pi Zero 2 W. Dashboard prototype (OC-001/OC-002)
-also in place against simulated engine data. No SmartCraft decoding or MQTT
-application code yet — that's M2.
-
 ## Documentation
 
 - [Features](docs/FEATURES.md) — the full capability list/product spec
@@ -69,7 +81,7 @@ application code yet — that's M2.
 - [x] Premium Helm Display redesign + GPS speed (OC-002)
 - [x] M1 — Hardware bring-up: dual CAN interfaces verified operational
 - [x] OC-003 — Maintenance Manager & Boat Health documented as a core module (see docs/FEATURES.md)
-- [ ] M2 — Capture live SmartCraft CAN traffic (SmartCraft extension cable + candump)
+- [x] M2 — Capture live SmartCraft CAN traffic (SmartCraft extension cable + candump)
 - [x] SmartCraft protocol analysis tool — reconstruction, compare, heat map (`tools/smartcraft_decoder.py`, see [docs/ReverseEngineering.md](docs/ReverseEngineering.md))
 - [ ] Decode RPM
 - [ ] Decode Engine Temp
