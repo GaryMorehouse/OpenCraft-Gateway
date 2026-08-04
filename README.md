@@ -58,6 +58,7 @@ application code yet — that's M2.
 - [Project Vision](docs/ProjectVision.md)
 - [Architecture](docs/Architecture.md)
 - [Software](docs/Software.md)
+- [Reverse Engineering](docs/ReverseEngineering.md) — SmartCraft protocol analysis workflow
 - [Milestones](docs/Milestones.md)
 - [Architecture Decision Records](docs/adr/)
 
@@ -69,6 +70,7 @@ application code yet — that's M2.
 - [x] M1 — Hardware bring-up: dual CAN interfaces verified operational
 - [x] OC-003 — Maintenance Manager & Boat Health documented as a core module (see docs/FEATURES.md)
 - [ ] M2 — Capture live SmartCraft CAN traffic (SmartCraft extension cable + candump)
+- [x] SmartCraft protocol analysis tool — reconstruction, compare, heat map (`tools/smartcraft_decoder.py`, see [docs/ReverseEngineering.md](docs/ReverseEngineering.md))
 - [ ] Decode RPM
 - [ ] Decode Engine Temp
 - [ ] Decode Trim
