@@ -968,6 +968,11 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 
 ## 17. Best next experiment
 
+The field sheet template has been updated with a dedicated
+"Sender-Disconnect Experiment" section covering experiment B below --
+see
+[docs/SmartCraft-Controlled-Capture-Data-Sheet.md](SmartCraft-Controlled-Capture-Data-Sheet.md).
+
 Two experiments now share top priority, since they answer different
 questions and neither depends on the other:
 
