@@ -659,7 +659,14 @@ the same logical packet, the same way this one ID already appears to
 carry several unrelated engine signals.
 **Best experiment to distinguish it**: compare two captures at genuinely
 different water depths (e.g. different dock/anchorage) -- a real depth
-signal shifts; a fuel-only or reserved byte won't.
+signal shifts; a fuel-only or reserved byte won't. A faster,
+single-session alternative (section 17): briefly disconnect the depth
+transducer's electrical connector. Depth is confirmed to be on this CAN
+bus -- it's one of the fields the SmartCraft tach gauge itself displays
+-- so this candidate should respond the same way the oil/water/coolant
+senders do: real depth is unaffected, and whichever byte snaps to a
+fixed fault value is very likely this signal, which by elimination also
+helps settle fuel (section 9).
 
 ## 11. Battery-voltage hypothesis
 
@@ -799,6 +806,20 @@ disruption in this file (below) is exactly what would be expected either
 way, and this capture on its own still can't test whether toggling the
 tach *would* disrupt traffic -- see the ranked explanations and the "Best
 next experiment" below.
+
+**"The tach" is a multi-parameter SmartCraft gauge, not a single-purpose
+RPM display**: per Gary, it also shows depth alongside other parameters
+(section 10). That matters for interpreting a future tach-disconnect
+experiment (section 17) -- if disconnecting it changes bus traffic, that
+result would reflect the loss of a display/consumer node that touches
+several of this report's signals (RPM, depth, and whatever else it
+shows), not necessarily something specific to RPM. Whether the gauge only
+*displays* values sourced from other senders/the ECM, or itself
+originates and broadcasts any of them (e.g. if it has its own depth
+transducer input), is not something this report can determine from the
+data alone -- that distinction should be checked against the gauge's own
+documentation or wiring before drawing conclusions from the A/B test's
+results.
 
 **What this capture *can* say about "richer traffic now vs. stuck traffic
 before"**: the previously-documented earlier session (`key-cycle.log`,
@@ -962,22 +983,35 @@ on its own (section 13). A capture that toggles *only* the tach's
 connection, with everything else held constant, is what would finally let
 this question be tested cleanly.
 
-**B. A sender-disconnect sweep** (sections 6, 7, 8, 9, 12): at a steady
-idle, briefly unplug each accessible sending unit's electrical connector
-one at a time -- oil pressure, raw water pressure, coolant temperature,
-fuel level, and trim position are all separate, discrete senders that
-this technique should work on -- ~10-15 seconds each, with a short
-settled pause between senders so the traces don't overlap, each
-disconnect/reconnect timestamped to the second. Real oil/water
-pressure, coolant temperature, fuel level, and trim position are all
-unaffected by unplugging their sender (only the signal is interrupted),
-so whichever CAN byte snaps to a fixed fault/out-of-range value at each
-specific disconnect -- and ignores everything else until reconnection --
-is very likely that physical signal. This is a much sharper,
-single-variable identity test than correlating against RPM, and it
-doesn't depend on ever getting a clean, steady RPM hold. Done as one
-sweep, it could resolve most of this report's remaining open candidate
-identities (sections 6, 7, 8, 9, 12) in a single short session.
+**B. A sender-disconnect sweep** (sections 6, 7, 8, 9, 10, 12): at a
+steady idle, briefly unplug each accessible sending unit's electrical
+connector one at a time -- oil pressure, raw water pressure, coolant
+temperature, fuel level, depth, and trim position are all separate,
+discrete senders that this technique should work on -- ~10-15 seconds
+each, with a short settled pause between senders so the traces don't
+overlap, each disconnect/reconnect timestamped to the second. Real
+oil/water pressure, coolant temperature, fuel level, depth, and trim
+position are all unaffected by unplugging their sender (only the signal
+is interrupted), so whichever CAN byte snaps to a fixed fault/
+out-of-range value at each specific disconnect -- and ignores everything
+else until reconnection -- is very likely that physical signal. This is a
+much sharper, single-variable identity test than correlating against
+RPM, and it doesn't depend on ever getting a clean, steady RPM hold.
+Done as one sweep, it could resolve most of this report's remaining open
+candidate identities (sections 6, 7, 8, 9, 10, 12) in a single short
+session.
+
+**Depth is confirmed to be on this CAN bus** (corrected from an earlier
+draft of this report, which treated that as uncertain): per Gary, depth
+is one of the fields the SmartCraft tach gauge itself displays, alongside
+other parameters -- since the gauge only shows values it receives over
+SmartCraft, depth must already be broadcast on this bus, not sourced from
+a separate, unrelated NMEA device. This also means "the tach" in
+experiment A above is a multi-parameter display, not a single-purpose
+RPM gauge -- worth keeping in mind when interpreting that test's results
+(section 13): if disconnecting it changes bus behavior, that could
+reflect the loss of a display/consumer node that touches several of this
+report's signals, not something specific to RPM.
 
 **This does not generalize to every signal**, and accessibility should be
 checked case by case:
@@ -988,9 +1022,6 @@ checked case by case:
 - **Battery voltage** has no separate sender to unplug -- it's a direct
   electrical measurement. The shore-power-disconnect experiment below
   is the closer equivalent for that signal.
-- **Depth** may not even be sourced from this CAN bus (it could be a
-  separate NMEA device/transducer bridged in elsewhere, if at all) --
-  worth confirming that before attempting a disconnect on it.
 - **Oil pressure specifically** carries an extra caution: the ECM may
   read "no signal" as critically low pressure and trigger an alarm or,
   on some SmartCraft-integrated ECMs, a protective rev-limit/
