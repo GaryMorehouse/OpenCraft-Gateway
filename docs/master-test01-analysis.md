@@ -225,7 +225,7 @@ specific run:
 | 22:54 | 1910 | 152 | 61.6 | 3.6 | 14.0 | 100 | | |
 | 22:54 | 2570 | 152 | 65.9 | 4.1 | 14.0 | 100 | | |
 | 22:58 | 560 | 159 | 46.7 | 0.6 | 14.0 | 100 | | |
-| 22:59-23:00 | Trim: Down, Up, Down, Up, Down, Up, Down (7 moves) | | | | | | | |
+| 22:59-23:00 | Trim: Down, Up, Down, Up, Down, Up, Down (see note) | | | | | | | |
 | 23:01 | 550, 990, 1400, 2000 | | | | | | | |
 | 23:03 | 2500 | | | | | | | |
 
@@ -236,9 +236,15 @@ physically connected for the entire test** (confirmed directly by Gary,
 who ran the capture); **no "Tach Experiment" rows were filled in**
 because the *deliberate connect/disconnect/reconnect A/B toggle* was not
 performed during this run -- that is a separate fact from the tach's
-connection state, which was "connected" throughout. See section 13. A
-second page lists fuel consumption (0.7, 1.1, 1.5, 1.7, 1.9,
-0.8 Gal/Hr), presumably corresponding to the idle/900/1380/1910/2570/idle
+connection state, which was "connected" throughout. See section 13.
+**Trim note (confirmed directly by Gary)**: the 22:41 "Down (0)" entry is
+trim's starting position -- fully trimmed down -- not one of the test's
+movements. From that starting position, the 22:59-23:00 sequence is
+**three full up/down cycles (6 movements: Up, Down, Up, Down, Up,
+Down)**; the sheet's own first "Down" entry at 22:59 restates the
+already-established starting position rather than logging a new move.
+See section 12. A second page lists fuel consumption (0.7, 1.1, 1.5, 1.7,
+1.9, 0.8 Gal/Hr), presumably corresponding to the idle/900/1380/1910/2570/idle
 sequence, though not explicitly linked row-by-row.
 
 **This changes two of the generic ground-truth assumptions the task
@@ -629,16 +635,23 @@ distinct points across the session -- roughly t=55-57s, 317-323s,
 0 and 6 of the same record show a subset of these same clusters (fewer,
 binary/3-valued transitions at t=55-57s, 423-425s, 826-828s,
 1066-1073s/1131-1136s).
-**Physical observation**: the field sheet places trim activity at
-22:59-23:00, **7 movements** (Down, Up, Down, Up, Down, Up, Down) -- more
-than the blank template's assumed 5 -- which maps to approximately
-`t~1080-1140s` under this report's time alignment (section 4).
-**Evidence FOR**: the two latest bytes-0/3/6 clusters (t=1066-1073s and
-t=1131-1136s) fall right at the edge of / inside that approximate
-`t~1080-1140s` trim window -- a real, if not exact, timing match given
-only minute-resolution hand timestamps. The burst shape itself (several
-rapid transitions within a few seconds, then quiet) is consistent with a
-relay/pulse-counter response to a handful of quick trim button taps.
+**Physical observation**: the field sheet, confirmed directly by Gary,
+shows trim starting fully down (position 0) at key-on (22:41), then --
+during 22:59-23:00 -- cycled through **three full up/down cycles (6
+movements: Up, Down, Up, Down, Up, Down)** from that starting position;
+the sheet's own first "Down" entry at 22:59 restates the already-current
+position rather than logging a new move. That 6-movement window maps to
+approximately `t~1080-1140s` under this report's time alignment (section
+4).
+**Evidence FOR**: two of this candidate's seven observed burst clusters
+(t=1066-1073s and t=1131-1136s) fall right at the edge of / inside that
+approximate `t~1080-1140s` trim window -- a real, if not exact, timing
+match given only minute-resolution hand timestamps. The burst shape
+itself (several rapid transitions within a few seconds, then quiet) is
+consistent with a relay/pulse-counter response to a handful of quick trim
+button taps, and the order of magnitude is right: three full up/down
+cycles is 6 discrete relay actuations, and each of the two matching
+clusters shows several rapid transitions, not just one.
 **Evidence AGAINST**: this candidate has *five more* burst clusters
 (t=55-57s, 317-323s, 423-425s, 524-529s, 697-699s) at times with no
 documented trim activity at all (they fall inside the extended-idle
@@ -647,9 +660,13 @@ clusters are entirely unexplained -- either trim was informally exercised
 without being logged, or this byte responds to something else that just
 happens to burst periodically (a status ping, a diagnostic poll), and the
 two clusters that do land near the documented trim window are
-coincidental. The cluster count and shape also don't cleanly resolve into
-7 distinct movements the way the RPM candidates cleanly resolved into a
-single sharp engine-start transition (section 5).
+coincidental. The two matching clusters are also ~65 seconds apart, while
+the field sheet describes all 6 movements happening within one
+continuous ~1-minute window -- that gap doesn't obviously match "six
+movements done in quick succession," so even the two "matching" clusters
+don't cleanly resolve into a single coherent trim-test signature the way
+the RPM candidates cleanly resolved into a single sharp engine-start
+transition (section 5).
 **Confidence: very weak / exploratory.** A real lead worth checking, not
 evidence. Not scored by the formal Phase 2 engine (trim remains "not yet
 testable" there -- section 4).
@@ -661,7 +678,7 @@ documented trim activity.
 otherwise steady (engine at idle, nothing else changing), with each
 individual Down/Up movement's clock time noted by hand -- so this
 candidate's cluster timing can be checked against real trim events one
-at a time instead of against a single ~1-minute window covering 7 moves
+at a time instead of against a single ~1-minute window covering 6 moves
 at once.
 
 ## 13. Tach / network participant analysis
