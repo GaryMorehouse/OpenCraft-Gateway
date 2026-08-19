@@ -428,7 +428,12 @@ instability is not yet explained by anything.
 **Best experiment to distinguish it**: a capture with ground truth
 extending past ~22:58-equivalent, and ideally through a confirmed
 "Engine STOPPED", to check whether the late-session drops are real
-thermostat cycling or something else.
+thermostat cycling or something else. Also useful: briefly disconnecting
+the coolant-temperature sender's electrical connector at a steady idle
+(section 17) -- real coolant temperature is unaffected, so whichever byte
+snaps to a fixed value at that moment is very likely this signal. Keep it
+brief; an ECM reading "no signal" as a fault could trigger an overheat
+warning.
 
 ## 7. Oil-pressure hypothesis
 
@@ -610,7 +615,13 @@ same CAN ID could plausibly carry both.
 **Best experiment to distinguish it**: compare two captures at
 meaningfully different fuel levels (e.g. before/after a long run, or
 deliberately at a lower tank level) -- a real fuel signal should shift
-noticeably; a reserved/padding or depth-only byte won't.
+noticeably; a reserved/padding or depth-only byte won't. A faster,
+single-session alternative: briefly disconnect the fuel-level sender's
+electrical connector (section 17) -- lower risk than the oil/water/
+coolant senders, since a disconnected fuel sender has no engine-safety
+implication, and whichever byte snaps to a fixed empty/full/fault value
+is very likely this signal (and, by elimination, rules that byte out as
+depth -- section 10).
 
 ## 10. Depth hypothesis
 
@@ -693,7 +704,11 @@ carries it.
 through cranking and into stable idle **with shore power disconnected**,
 so the expected ~12.5V (resting battery) -> ~13.8-14.2V (alternator
 charging, engine load) step is actually exercised and not masked by a
-charger.
+charger. Note: the sender-disconnect technique proposed elsewhere in this
+report (sections 6, 7, 8, 9, 12, 17) doesn't apply here -- battery
+voltage has no separate sending unit to unplug; it's read directly off
+the electrical system, so the shore-power test above is the closest
+equivalent single-variable manipulation available.
 
 ## 12. Trim hypothesis
 
@@ -753,7 +768,12 @@ otherwise steady (engine at idle, nothing else changing), with each
 individual Down/Up movement's clock time noted by hand -- so this
 candidate's cluster timing can be checked against real trim events one
 at a time instead of against a single ~1-minute window covering 6 moves
-at once.
+at once. A complementary, lower-effort test (section 17): briefly
+disconnect the trim ram's position-feedback sender (a separate,
+purely-electrical sensor, distinct from actually moving the trim) at a
+fixed trim position -- this tests the candidate's *identity* without
+needing to cycle trim at all, the same way the sender-disconnect tests
+work for oil/water pressure and coolant.
 
 ## 13. Tach / network participant analysis
 
@@ -942,20 +962,40 @@ on its own (section 13). A capture that toggles *only* the tach's
 connection, with everything else held constant, is what would finally let
 this question be tested cleanly.
 
-**B. A brief oil-pressure and raw-water-pressure sender-disconnect test**
-(sections 7 and 8): at a steady idle, unplug the oil-pressure sending
-unit's electrical connector for ~10-15 seconds (real oil pressure is
-unaffected -- only the sensor signal is interrupted), reconnect, then
-repeat for the raw-water-pressure sender, each disconnect/reconnect
-timestamped to the second. Whichever CAN byte snaps to a fixed
-fault/out-of-range value at each disconnect and ignores RPM until
-reconnection is very likely that physical signal -- a much sharper,
-single-variable test than trying to correlate against RPM, and it doesn't
-depend on ever getting a clean, steady RPM hold. **Caution**: the ECM may
-read "no signal" from a disconnected oil-pressure sender as critically
-low pressure and trigger an alarm or, on some SmartCraft-integrated ECMs,
-a protective rev-limit/reduced-power response -- do this briefly, at idle
-only, never at elevated RPM, with someone ready to reconnect immediately.
+**B. A sender-disconnect sweep** (sections 6, 7, 8, 9, 12): at a steady
+idle, briefly unplug each accessible sending unit's electrical connector
+one at a time -- oil pressure, raw water pressure, coolant temperature,
+fuel level, and trim position are all separate, discrete senders that
+this technique should work on -- ~10-15 seconds each, with a short
+settled pause between senders so the traces don't overlap, each
+disconnect/reconnect timestamped to the second. Real oil/water
+pressure, coolant temperature, fuel level, and trim position are all
+unaffected by unplugging their sender (only the signal is interrupted),
+so whichever CAN byte snaps to a fixed fault/out-of-range value at each
+specific disconnect -- and ignores everything else until reconnection --
+is very likely that physical signal. This is a much sharper,
+single-variable identity test than correlating against RPM, and it
+doesn't depend on ever getting a clean, steady RPM hold. Done as one
+sweep, it could resolve most of this report's remaining open candidate
+identities (sections 6, 7, 8, 9, 12) in a single short session.
+
+**This does not generalize to every signal**, and accessibility should be
+checked case by case:
+- **RPM** can't be tested this way -- it comes from the crank/cam
+  position sensor(s), which the ECM needs for ignition/injection timing.
+  Disconnecting that on a running engine risks a stall or bad misfire,
+  not a clean test.
+- **Battery voltage** has no separate sender to unplug -- it's a direct
+  electrical measurement. The shore-power-disconnect experiment below
+  is the closer equivalent for that signal.
+- **Depth** may not even be sourced from this CAN bus (it could be a
+  separate NMEA device/transducer bridged in elsewhere, if at all) --
+  worth confirming that before attempting a disconnect on it.
+- **Oil pressure specifically** carries an extra caution: the ECM may
+  read "no signal" as critically low pressure and trigger an alarm or,
+  on some SmartCraft-integrated ECMs, a protective rev-limit/
+  reduced-power response. Keep every disconnect brief, at idle only,
+  never at elevated RPM, with someone ready to reconnect immediately.
 
 Both A and B can plausibly be combined into one otherwise-steady-idle
 session if convenient. Close behind, roughly in priority order:
