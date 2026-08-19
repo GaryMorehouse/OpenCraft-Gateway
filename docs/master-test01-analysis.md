@@ -231,9 +231,13 @@ specific run:
 
 Notes on the sheet: "Shore power on during this test", "RPM numbers are
 approximate", "depth fluctuated between 8.9 and ~9.1 ft", "Times are
-approximate" (minute resolution only, no seconds). **No "Tach
-Experiment" rows were filled in at all** -- directly relevant to section
-13. A second page lists fuel consumption (0.7, 1.1, 1.5, 1.7, 1.9,
+approximate" (minute resolution only, no seconds). **The tachometer was
+physically connected for the entire test** (confirmed directly by Gary,
+who ran the capture); **no "Tach Experiment" rows were filled in**
+because the *deliberate connect/disconnect/reconnect A/B toggle* was not
+performed during this run -- that is a separate fact from the tach's
+connection state, which was "connected" throughout. See section 13. A
+second page lists fuel consumption (0.7, 1.1, 1.5, 1.7, 1.9,
 0.8 Gal/Hr), presumably corresponding to the idle/900/1380/1910/2570/idle
 sequence, though not explicitly linked row-by-row.
 
@@ -669,17 +673,21 @@ never gaps more than 0.09s, `1A0` more than 0.25s, `1FFD4041` more than
 than ~15.05s (i.e. never misses a single expected cycle). **There is no
 detectable interruption anywhere in this file on any ID.**
 
-**This is now explained, not just hedged**: the recovered field sheet for
-this test (section 4) has no "Tach Experiment" entries at all -- its
-RPM/trim rows are filled in but the Tach CONNECTED/DISCONNECTED/RECONNECTED
-rows were simply never used. **The tach toggle step was not performed
-during this specific test**, which fully accounts for the absence of any
-traffic disruption -- there's nothing to have caused one. This capture,
-by itself, therefore still says nothing about whether the tach is an
-active network participant; that question remains exactly as open as
-before, just for a confirmed reason now (the experiment wasn't run)
-rather than a suspected one (an earlier draft of this report guessed the
-capture had been cut short).
+**Correction (this section originally misstated the tach's connection
+state and has been corrected)**: the tachometer **was physically
+connected for the entire `master-test01` capture** -- confirmed directly
+by Gary, who ran the test. What the recovered field sheet (section 4)
+actually shows is that no "Tach Experiment" rows were filled in, meaning
+the *deliberate connect -> disconnect -> reconnect A/B toggle* described
+in the blank protocol template was not performed during this run. That is
+a distinct fact from the tach's connection state, and an earlier draft of
+this report conflated the two -- "the toggle experiment wasn't run" does
+**not** mean "the tach was disconnected." With the tach connected
+throughout and no toggle performed, the absence of any traffic
+disruption in this file (below) is exactly what would be expected either
+way, and this capture on its own still can't test whether toggling the
+tach *would* disrupt traffic -- see the ranked explanations and the "Best
+next experiment" below.
 
 **What this capture *can* say about "richer traffic now vs. stuck traffic
 before"**: the previously-documented earlier session (`key-cycle.log`,
@@ -690,8 +698,17 @@ on, so this comparison relies on the description already recorded in
 `docs/ReverseEngineering.md`/`docs/HypothesisReport.md`: each of those
 four files was a single CAN frame (record `00` of ID `170`) retransmitted
 100,000+ times with no other content, "consistent with a Listen-Only
-capture against a bus with no other node available to ACK it." Given that
-description, ranked explanations for why this capture looks so different:
+capture against a bus with no other node available to ACK it."
+
+**The capture-history correlation, stated plainly**: the earlier, unusable
+session was captured with the tach **disconnected**; `master-test01` (this
+healthy capture) was captured with the tach **connected**. That is a real,
+useful correlation and this report treats it as exactly that -- a
+correlation worth testing directly -- **not** as proof that the tach's
+presence causes the difference. Two captures, each with a different
+confound (see below), is not enough to establish causation. Given the
+documented old-session symptom, ranked explanations for why this capture
+looks so different:
 
 1. **(Most consistent with the documented symptom) No other node was
    ACKing the bus in the old captures, and the CAN protocol itself causes
@@ -722,12 +739,18 @@ description, ranked explanations for why this capture looks so different:
 
 This report cannot rank these three definitively -- the raw evidence
 needed to (the old logs' actual frame arbitration/error behavior) no
-longer exists on disk. **Best next experiment**: repeat the tach
-connect/disconnect/reconnect step as its own short, dedicated capture
-(engine running, otherwise steady idle, only the tach's connector
-toggled), filling in the data sheet's "Tach Experiment" timestamps this
-time, so the specific effect (if any) on `00000B41`/`0000410B`/`1FFD4041`
-traffic can be isolated from every other variable.
+longer exists on disk, and the tach-connected/tach-disconnected
+correlation currently rests on exactly two captures that also differ in
+every other way (different sessions, ~18 hours apart, engine state
+unknown for the old one, different capture setup) -- nowhere near enough
+to call it causal. **This makes a controlled tach-connected vs.
+tach-disconnected A/B comparison the single highest-value next
+experiment** (see section 17): repeat the connect/disconnect/reconnect
+step as its own short, dedicated capture (engine running, otherwise
+steady idle, only the tach's connector toggled, both states logged to the
+second), so the specific effect (if any) on `00000B41`/`0000410B`/
+`1FFD4041` traffic can finally be isolated from every other variable that
+currently confounds the two-capture comparison above.
 
 ## 14. Comparison with previous captures
 
@@ -789,30 +812,39 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 - The trim hypothesis is still not confirmed -- 5 of 7 burst clusters on
   the leading candidate fall at times with no documented trim activity
   (section 12).
-- The tach connect/disconnect/reconnect experiment was not performed
-  during this specific test (confirmed by the field sheet); the "is the
-  tach an active network participant" question is still open (section
-  13).
+- The tach was connected throughout `master-test01`, but the deliberate
+  connect/disconnect/reconnect A/B toggle was not performed during this
+  specific test (confirmed by the field sheet); the "is the tach an
+  active network participant" question is still open (section 13).
 - `00000B41`/`0000410B`'s true framing convention (address-claim /
   request-response handshake) is inferred from timing and shape, not
   confirmed against any protocol spec.
 - Battery voltage cannot be cleanly tested in this capture because shore
   power was active throughout (section 11).
-- Whether the earlier, ~18-hour-prior "stuck" session was really caused
-  by the tach being disconnected (vs. engine-off, vs. capture-rig
-  differences) cannot be re-tested now that those raw files no longer
-  exist on disk (section 13).
+- Whether the earlier, ~18-hour-prior "stuck" session (tach disconnected)
+  vs. `master-test01` (tach connected) was really caused by the tach's
+  connection state, rather than the other confounds between those two
+  sessions (engine-off vs. running, capture-rig differences), cannot be
+  re-tested now that the old session's raw files no longer exist on disk
+  (section 13). This is a real, noted correlation, not a demonstrated
+  cause -- see section 17.
 
 ## 17. Best next experiment
 
-**A short, isolated tach connect/disconnect/reconnect capture**, engine
-running and otherwise held steady at idle, with the data sheet's "Tach
-Experiment" section actually filled in (disconnect/reconnect timestamps
-noted by the clock, ideally to the second). This is the single
-highest-value follow-up: it directly tests section 13's still-open
-question, and unlike most of this report it doesn't require solving the
-RPM/oil-pressure/water-pressure mechanical-coupling problem to be
-informative.
+**A short, isolated, controlled tach-connected vs. tach-disconnected
+comparison**, engine running and otherwise held steady at idle, with the
+data sheet's "Tach Experiment" section actually filled in
+(disconnect/reconnect timestamps noted by the clock, ideally to the
+second). This is the single highest-value follow-up: the capture history
+so far shows a real correlation -- the earlier unusable session had the
+tach disconnected, `master-test01` had it connected and was healthy --
+but with only two captures that also differ in every other way, that
+correlation is not evidence of causation on its own (section 13). A
+capture that toggles *only* the tach's connection, with everything else
+held constant (engine running, steady idle, same rig, same session), is
+what would finally let this question be tested cleanly. Unlike most of
+this report it also doesn't require solving the RPM/oil-pressure/
+water-pressure mechanical-coupling problem to be informative.
 
 Close behind, roughly in priority order:
 
