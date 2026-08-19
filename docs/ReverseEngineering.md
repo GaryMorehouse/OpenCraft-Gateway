@@ -51,9 +51,9 @@ These describe frame *structure*, not meaning — see the rule above.
 | `1E0` | fragmented | `00`-`17`, `FF` | |
 | `1F0` | fragmented | `00`, `01`, `FF` | |
 | `1FFD4041` | **uncertain** (extended/29-bit ID) | `02`-`05` only | never shows `00`, `01`, or `FF` in any capture -- classify_ids therefore treats it as atomic (no confirmed terminator), but it does cycle through 4 distinct leading-byte values, so it may use a different framing convention entirely. Phase 2's candidate scan groups it by leading byte anyway (see `signals.py`) without asserting it fragments the same way 170 does. |
-| `00000B41` | atomic (single-frame) | — | 3-byte payload; first byte constant (`0x83`) in samples so far |
-| `0000410B` | atomic (single-frame) | — | 1-byte payload; constant (`0x01`) in samples so far |
-| `0E3792F3` | atomic (single-frame) | — | seen only in `smartcrafttest.log`, not in the small committed samples; payload constant in that capture |
+| `00000B41` | atomic in short captures; a multi-shape handshake immediately after key-ON in longer ones | — | earlier finding ("3-byte payload, first byte constant `0x83`") only held for the mid-session slice the five short sample logs happened to cover. In `master-test01` (a full session starting at key-ON) it opens with a ~5s burst of several distinct, varying-length payloads (1/2/3/5 bytes), then settles into the previously-documented steady-state pattern. See [docs/master-test01-analysis.md](master-test01-analysis.md) section 3. |
+| `0000410B` | atomic in short captures; a multi-shape handshake immediately after key-ON in longer ones | — | same correction as `00000B41` above -- earlier "1-byte payload, constant `0x01`" only held for the mid-session slice; opens with a varying-length (1/2/4-byte) handshake burst in `master-test01`. Its steady-state messages match `00000B41`'s timestamps exactly, suggesting a request/response pair or shared broadcast. |
+| `0E3792F3` | atomic (single-frame) | — | seen only in `smartcrafttest.log`, which is no longer on disk to re-check. `master-test01` separately shows an ID `0E3790F3` (note: `90`, not `92`) with a similar burst-then-silence pattern -- possibly the same ID misrecorded in this earlier note, possibly a genuinely different ID. Unresolved; see [docs/master-test01-analysis.md](master-test01-analysis.md) section 2. |
 
 "Fragmented" here means `smartcraft_decoder.py` detected the record-number /
 `0xFF`-terminator convention from the frames actually seen (see
@@ -93,6 +93,16 @@ A separate, ~18-hours-earlier capture session also exists on disk
 -- every one of those four files is a single CAN frame retransmitted
 100,000+ times with no other content, consistent with a Listen-Only capture
 against a bus with no other node available to ACK it. They are not
-committed and are excluded from Phase 2's analysis. Re-capturing a real
-trim cycle, key cycle, and RPM step test is open follow-up work -- see the
-Data Quality section of [docs/HypothesisReport.md](HypothesisReport.md).
+committed and are excluded from Phase 2's analysis. Those raw files no
+longer exist on disk as of the `master-test01` analysis below, so this
+description can no longer be independently re-verified.
+
+**`master-test01.txt`** (committed alongside the five logs above) is a
+single ~22-minute continuous capture spanning key-ON, engine start,
+extended idle, two RPM-step tests, trim cycles, and shutdown -- the real
+trim cycle, key cycle, and RPM step test called for above. It has a real,
+timestamped field sheet of gauge readings behind it and its own dedicated
+analysis: see [docs/master-test01-analysis.md](master-test01-analysis.md).
+It is registered as a `continuous`-tagged `Experiment` (not a single
+steady-state condition) in `experiments.py` and is included in the
+regenerated [docs/HypothesisReport.md](HypothesisReport.md).

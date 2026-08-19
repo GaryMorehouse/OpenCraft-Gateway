@@ -56,14 +56,17 @@ class CandidateFeatures:
 
 
 def compute_features(key: CandidateKey, traces: dict, experiments: List[Experiment]) -> CandidateFeatures:
-    all_names = [e.name for e in experiments]
+    # "continuous" experiments (see experiments.py) deliberately span several
+    # operating conditions in one capture, so they're excluded from the
+    # stability rubric, which assumes one steady condition per experiment.
+    steady_state_names = [e.name for e in experiments if "continuous" not in e.tags]
     rpm_names = [e.name for e in experiments if "rpm" in e.tags]
     return CandidateFeatures(
         key=key,
         traces=traces,
         rpm_corr=rpm_correlation(traces, experiments),
         session_drift=session_drift(traces, experiments),
-        stability=within_condition_stability(traces, all_names),
+        stability=within_condition_stability(traces, steady_state_names),
         idle_rpm_sep=idle_vs_rpm_separation(traces, experiments),
         idle_drift=idle_replicate_drift(traces, experiments),
         near_constant=near_constant_score(traces, key),

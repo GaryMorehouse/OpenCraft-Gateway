@@ -40,6 +40,15 @@ class Experiment:
     # Free-form tags for experiment kinds beyond RPM/idle, e.g. "trim_cycle",
     # "key_cycle" -- so future evidence functions can select by kind without
     # every hypothesis having to know about rpm_rank/session_order.
+    #
+    # "continuous" is a recognized tag meaning this capture spans multiple
+    # operating conditions itself (e.g. a single log covering cold start,
+    # idle, several RPM steps, and trim cycles) rather than one steady
+    # condition. It has no single rpm_rank and is excluded from the
+    # within_condition_stability rubric in hypotheses.py, which assumes one
+    # steady condition per experiment -- without that exclusion, a real
+    # RPM-like signal genuinely sweeping through a continuous session would
+    # be scored as "unstable" and penalized for doing exactly what it should.
     tags: Tuple[str, ...] = ()
 
 
@@ -49,4 +58,16 @@ EXPERIMENTS = [
     Experiment("1650rpm", SAMPLES_DIR / "1650rpm.txt", rpm_rank=2, session_order=2, tags=("rpm",)),
     Experiment("1900rpm", SAMPLES_DIR / "1900rpm.txt", rpm_rank=3, session_order=3, tags=("rpm",)),
     Experiment("idle2", SAMPLES_DIR / "idle2.txt", rpm_rank=0, session_order=4, tags=("idle", "idle_replicate")),
+    # Continuous field capture: cold start through warm-up, several deliberate
+    # RPM steps, and trim cycles, all in one ~21.9-minute log with the
+    # SmartCraft tach connected (see docs/master-test01-analysis.md). Not a
+    # single steady condition, so rpm_rank is None; see the "continuous" tag
+    # note above for how this is handled in the stability rubric.
+    Experiment(
+        "master-test01",
+        SAMPLES_DIR / "master-test01.txt",
+        rpm_rank=None,
+        session_order=5,
+        tags=("field_session", "continuous"),
+    ),
 ]

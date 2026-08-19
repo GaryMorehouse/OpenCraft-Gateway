@@ -1,0 +1,836 @@
+# master-test01.log — Capture Analysis
+
+Analysis of `master-test01.log`, a controlled SmartCraft capture performed
+against the 2006 Sea Ray 240 Sundancer / MerCruiser 5.0 MPI following the
+`SmartCraft Controlled Capture Data Sheet` protocol (key-ON, engine start,
+extended idle, RPM steps, trim cycles, an optional tach
+connect/disconnect/reconnect experiment, engine stop).
+
+**Everything in this document is a theory scored against evidence, not a
+decode.** No byte is asserted to mean anything; every candidate below
+states what supports it, what argues against it, and what would settle
+it. Where this report's read of the evidence differs from
+[`docs/HypothesisReport.md`](HypothesisReport.md) (the Phase 2 tool's
+automated output), that's flagged explicitly -- the tool is built around
+discrete steady-state logs and cannot see within-session structure the
+way a manual pass over one long continuous capture can.
+
+A working copy of the raw log is committed at
+[`tools/samples/logs/master-test01.txt`](../tools/samples/logs/master-test01.txt)
+(byte-identical to the original `master-test01.log`, renamed `.txt` per
+this repo's existing sample-log convention so it isn't swept up by
+`.gitignore`'s `*.log` rule). The filled-in field sheet for this exact
+test is copied to
+`tools/samples/SmartCraft Controlled Capture test 01.pdf`. Neither
+original file supplied for this analysis was modified.
+
+## 1. Capture integrity
+
+- **File size**: 9,228,288 bytes (9.23 MB); checksum-verified identical to
+  the original.
+- **Lines**: 198,787. **Parsed frames**: 198,784. **Malformed lines**: 4 --
+  one `nohup: ignoring input` banner line (the capture was started under
+  `nohup`, and its stdout message leaked into the log), and three lines
+  near the very end of the file where the frame text runs directly into a
+  long run of `\x00` bytes with no newline between them.
+- **Duration**: 1311.86 s (**21 min 52 s**), first frame at capture-relative
+  `t=0.000s`, last frame at `t=1311.86s`.
+- **Unique CAN IDs**: 11 -- `170`, `1A0`, `1FFD4041`, `1E0`, `1F0`,
+  `00000B41`, `0000410B`, `0E3790F3`, plus three singleton IDs (`538`,
+  `3E0`, `378`) that each appear exactly once.
+- **Standard vs extended**: `170`, `1A0`, `1E0`, `1F0`, `538`, `3E0`, `378`
+  are 11-bit standard IDs. `1FFD4041`, `00000B41`, `0000410B`, `0E3790F3`
+  are 29-bit extended IDs.
+- **Frame counts by ID**:
+
+  | ID | count | payload length(s) | notes |
+  |---|---|---|---|
+  | `170` | 105,792 | 8 | main fragmented message, ~12.4ms mean gap |
+  | `1A0` | 73,840 | 8 | main fragmented message, ~17.8ms mean gap |
+  | `1FFD4041` | 16,759 | 8 | ~78ms mean gap, never repeats a payload back-to-back |
+  | `1E0` | 1,825 | 8 | ~0.7s mean gap |
+  | `1F0` | 216 | 8 | ~5.9s mean gap |
+  | `00000B41` | 165 | 1, 2, 3, or 5 bytes | **not** a fixed 3-byte payload -- see section 3 |
+  | `0000410B` | 162 | 1, 2, or 4 bytes | **not** a fixed 1-byte payload -- see section 3 |
+  | `0E3790F3` | 22 | 8 | 21 identical frames in the first 7ms, one more at t=68.146s |
+  | `538`, `3E0`, `378` | 1 each | 8 | singletons, see section 2 |
+
+- **Malformed/noise frames**: besides the `nohup` banner, three lines late
+  in the file are corrupted by a run of NUL bytes overwriting what should
+  be line breaks, merging that line's timestamp/payload into the next --
+  consistent with the destination file having been preallocated (or a
+  page zero-filled) and the capture process being torn down without
+  cleanly flushing.
+- **The capture ends while the engine is still running.** In the last 15
+  samples before EOF (t=1310.3-1311.8s), the strongest RPM/pressure-shaped
+  candidates (`170` record `00` byte 1, `170` record `01` bytes 4-5, `1A0`
+  record `05` bytes 1-2) are all still at mid-session, "running" values.
+  This is now explained by the recovered field sheet (section 4): its
+  last entry is "23:03, 2500 RPM" with no "Engine STOPPED"/"Key OFF" rows
+  filled in at all, and the file's own duration lands almost exactly on
+  23:03 when added to the sheet's 22:41 key-on time. So this is not
+  evidence of an unplanned truncation mid-protocol -- the capture simply
+  appears to end right around when the documented test's last planned RPM
+  point was reached. The tail NUL-byte corruption above is still a real,
+  separate data-quality issue, just not evidence of a *lost* portion of
+  the protocol.
+- **Repeated/stuck traffic**: `170`'s longest run of an identical
+  consecutive payload is 245 frames, all within the first ~64s
+  (key-ON/engine-OFF, before the engine actually turns -- nothing on the
+  bus should be changing yet, so this is expected, not a fault). No other
+  ID shows a stuck-frame run remotely close to the "100,000+ retransmits
+  of one frame" pattern documented for the earlier, unusable capture
+  session (section 13/14). `0000410B` spends most of the file alternating
+  a single byte (`01`) on a slow ~15s cadence, but that's a real periodic
+  message, not a stuck retry (section 3).
+- **Verdict: this looks like a genuinely healthy, live SmartCraft
+  conversation** -- multiple independently-timed CAN IDs, real dynamic
+  range on several fields, a clean key-ON -> crank -> running transition
+  recovered directly from the data (section 5), and no sign of the
+  single-frame retry storm that made the earlier session's four large
+  files unusable.
+
+## 2. CAN ID inventory
+
+Per-byte constant/changing/counter/status classification for every
+observed byte is generated mechanically by the existing toolkit and is not
+reproduced by hand here -- see the regenerated
+[`docs/HypothesisReport.md`](HypothesisReport.md) "Current Protocol Map"
+(now includes `master-test01`; see section 4) and the raw heat map at
+`tools/samples/output/` for the full table. Headline points not already
+obvious from that table:
+
+- **`00000B41` and `0000410B` are not fixed-length, constant-payload
+  atomic messages.** The earlier structural finding ("3-byte payload,
+  first byte constant 0x83" / "1-byte payload, constant 0x01") was true
+  *only* of the narrow mid-session slice the five short sample logs
+  happened to capture. In this longer capture, both IDs open with a
+  ~5-second burst of several distinct, varying-length payloads
+  immediately after key-ON, then settle into the previously-documented
+  steady-state pattern for the rest of the session. Full detail in
+  section 3.
+- **`0E3790F3`** (not `0E3792F3` as an earlier draft of
+  `docs/ReverseEngineering.md` recorded for a similarly-named ID seen only
+  in one of the now-deleted, unusable old capture files -- that file no
+  longer exists to check, so this may be a genuinely different ID or a
+  transcription slip in that earlier note; flagged, not resolved) sends
+  21 back-to-back identical 8-byte frames in the first 7ms of the capture,
+  then one more identical frame at t=68.146s, then nothing for the
+  remaining ~1243 seconds of the file.
+- **Three singleton standard IDs** (`538` at t=68.146s, `3E0` at
+  t=1031.21s, `378` at t=1058.01s) each appear exactly once in the whole
+  file. `538`'s single frame lands at *exactly* the same instant as
+  `0E3790F3`'s lone late repeat and within ~2 seconds of the
+  RPM/oil-pressure/water-pressure candidates' engine-start transition
+  (section 5) -- independent corroboration that a real bus-wide event
+  (engine start) occurred right around t=66-70s.
+- No CAN ID shows a payload-length or fragmentation-convention conflict
+  with what `smartcraft_toolkit.reconstruct.classify_ids` already detects
+  for `170`/`1A0`/`1E0`/`1F0` (all still cleanly fragmented,
+  record+0xFF-terminator). `1FFD4041` still never shows a `00`/`01`/`FF`
+  record byte in this capture either, so its true framing convention
+  remains unconfirmed.
+
+## 3. Important message structures
+
+### `170`
+
+Unchanged structurally from prior findings: fragmented, records `00`-`06`
+plus `FF`, 7-byte payload per record after the record byte. See sections
+5-12 for the individual candidate bytes now under test.
+
+### `1A0`
+
+Unchanged structurally: fragmented, records `00`-`0C` plus `FF`. One
+notable new candidate: record `00` bytes 1 and 2 (values `{0,1,2}` and
+`{0,1}` respectively) step to a new value at **exactly** t=68.4s, 662.1s,
+956.1s, 1158.6s, and 1271.8s -- the same five moments where the
+RPM/oil-pressure candidates transition between plateaus (section 5). This
+looks like a low-cardinality engine/operating-mode status flag, not a
+physical analog signal, but it independently corroborates that those five
+timestamps are real regime changes, not artifacts of this report's
+segmentation method.
+
+### `1FFD4041`
+
+Still cycles through leading-byte values with no `00`/`01`/`FF` record
+ever observed, and still never repeats an identical payload twice in a
+row across 16,759 frames -- the busiest, most continuously-changing ID in
+the whole capture relative to its frame count. Framing convention remains
+unconfirmed.
+
+### `00000B41` and `0000410B`
+
+These two IDs are the most structurally interesting new finding in this
+capture. Both show the same two-phase pattern:
+
+**Phase 1 (t=0.1s-5.1s, immediately after the file starts / key-ON):** a
+burst of several distinct payload shapes, repeating roughly every ~2.2s
+for three rounds with different data each round --
+
+```
+0000410B:  AA | 29 | DB1B0275 | 0206 | 077A8056 | 05      (round 1, t=0.1-1.1s)
+0000410B:  AA | 29 | 7440111B | 0206 | 077A8056?| 05      (round 2, t=2.3-2.8s)
+0000410B:  AA | 29 | 676A2334 | 0206 | 7CD6C357 | 05      (round 3, t=4.5-5.0s)
+
+00000B41:  55 | C000 | FA0206 | F91C0C508B                (round 1, t=0.1-1.1s)
+00000B41:  55 | C000 | FA0206 | F931FB386B | 8005 | 81CC00C02B   (round 2, t=2.3-2.8s)
+00000B41:  55 | C000 | FA0206 | F90BA658DB | 8005 | 81998852E3   (round 3, t=4.5-5.0s)
+```
+
+The repeated 1-byte tags (`AA`, `29`, `05` / `55`, `05`, `81`) stay
+constant across rounds while the 3-4-byte payloads change every round --
+the shape of a repeated request/response or address-claim handshake, not
+noise. This is exactly the kind of "initialization traffic" section 13
+asks about.
+
+**Phase 2 (t=5.1s onward, for the rest of the file):** both IDs settle
+into a simple steady-state pattern -- `0000410B` sends a constant 1-byte
+`01` roughly every ~15s (in pairs ~3s apart, then a ~15s gap), and
+`00000B41` alternates between two 3-byte payloads (`83 07 17` /
+`83 04 FF`) on the identical cadence. **The timestamps of `0000410B`'s and
+`00000B41`'s steady-state messages match exactly**, frame for frame, for
+the rest of the capture. This is strong evidence the two IDs are either a
+request/response pair (their ID values, `00 00 0B 41` vs `00 00 41 0B`,
+are byte-position-swapped, consistent with a source/destination
+addressing scheme in the extended-ID space) or two halves of one periodic
+broadcast from the same node.
+
+This fully explains the earlier finding that `00000B41` was "constant at
+0x83" and `0000410B` was "constant at 0x01" -- the five short sample logs
+were all captured well after key-ON, so they only ever saw this Phase 2
+steady-state slice. This capture is the first to catch the actual
+power-on sequence.
+
+## 4. Byte-change analysis
+
+### Ground truth: the recovered field sheet
+
+**A filled-in field sheet for this exact test exists**
+(`SmartCraft Controlled Capture test 01.pdf`) and supersedes the generic
+"expected approximate values" originally used to scope this analysis. It
+gives real, clock-timestamped, multi-point gauge readings for this
+specific run:
+
+| Time | Event/RPM | Coolant °F | Oil PSI | Water PSI | Voltage | Fuel % | Depth ft | Trim |
+|---|---|---|---|---|---|---|---|---|
+| 22:41 | Key ON | 95 | 0.5 | 0 | 13.4 | 100 | 8.9 | Down (0) |
+| 22:43 | 590 | 102 | 50.3 | 0.6 | 13.8 | 100 | 8.9 | |
+| 22:47 | 580 | 141 | 49.6 | 1.0 | 13.9 | 100 | | |
+| 22:49 | 560 | 154 | 49.2 | 0.8 | 13.9 | 100 | | |
+| 22:50 | 550 | 154 | 49.7 | 0.8 | 13.9 | 100 | | |
+| 22:51 | 540 | 152 | 49.9 | 0.7 | 13.8 | 100 | | |
+| 22:54 | 900 | 152 | 53.3 | 1.7 | 14.0 | 100 | | |
+| 22:54 | 1380 | 152 | 56.3 | 2.8 | 14.0 | 100 | | |
+| 22:54 | 1910 | 152 | 61.6 | 3.6 | 14.0 | 100 | | |
+| 22:54 | 2570 | 152 | 65.9 | 4.1 | 14.0 | 100 | | |
+| 22:58 | 560 | 159 | 46.7 | 0.6 | 14.0 | 100 | | |
+| 22:59-23:00 | Trim: Down, Up, Down, Up, Down, Up, Down (7 moves) | | | | | | | |
+| 23:01 | 550, 990, 1400, 2000 | | | | | | | |
+| 23:03 | 2500 | | | | | | | |
+
+Notes on the sheet: "Shore power on during this test", "RPM numbers are
+approximate", "depth fluctuated between 8.9 and ~9.1 ft", "Times are
+approximate" (minute resolution only, no seconds). **No "Tach
+Experiment" rows were filled in at all** -- directly relevant to section
+13. A second page lists fuel consumption (0.7, 1.1, 1.5, 1.7, 1.9,
+0.8 Gal/Hr), presumably corresponding to the idle/900/1380/1910/2570/idle
+sequence, though not explicitly linked row-by-row.
+
+**This changes two of the generic ground-truth assumptions the task
+started from**: fuel reads **100%** throughout this specific test, not
+~48% (a full tank, evidently, for this run), and coolant starts at
+**95°F**, not ~72°F (the engine was apparently already warm at key-on).
+Depth (8.9-9.1ft) and the oil/water/RPM shapes match the generic priors
+reasonably well. All ground-truth statements in sections 5-12 use this
+sheet's actual numbers.
+
+**Time alignment**: the sheet gives clock time; the CAN log gives
+capture-relative seconds. Treating 22:41 (Key ON) as file `t=0` is well
+supported: the file's first ~66 seconds are flat/inert exactly as
+expected for key-on/engine-off, and the file's total duration (1311.86s)
+added to 22:41 lands at 23:02:52 -- almost exactly the sheet's last entry
+("23:03, 2500 RPM"). Given only minute-resolution, approximate clock
+times, this mapping should be trusted to roughly +/-30-60s, not tighter --
+broad trends and relative-magnitude comparisons are reliable; exact
+numeric correlation at the level of a single RPM step is not.
+
+### Hypothesis engine run
+
+`master-test01` has been registered as a new `Experiment` in
+`tools/smartcraft_toolkit/experiments.py` (`rpm_rank=None`,
+`session_order=5`, tagged `field_session`, `continuous` -- it is not a
+single steady-state condition, so it can't claim one `rpm_rank`).
+`docs/HypothesisReport.md` has been regenerated from the full
+six-experiment set.
+
+**One code change was needed to accommodate it honestly**:
+`within_condition_stability` in `signals.py`/`hypotheses.py` previously
+assumed every registered experiment is a single steady condition -- true
+for the five old logs, false for a 22-minute session that deliberately
+sweeps through many conditions. Without a fix, a *real* RPM-like signal
+correctly varying within `master-test01` would have been scored as
+"unstable" and penalized for doing exactly what it should. `compute_features`
+now excludes any experiment tagged `continuous` from that one rubric only
+(every other feature -- session drift, near-constant score, distinct-value
+count, monotonic-counter detection -- still pools `master-test01`'s data
+in). A test (`TestStabilityExcludesContinuousExperiments`) confirms a
+synthetic RPM-shaped continuous trace no longer tanks the stability score,
+and a second new test file (`test_experiments.py`) sanity-checks that
+every registered experiment's log file exists on disk and that
+`continuous`-tagged experiments never claim an `rpm_rank`. All 77 existing
++ new tests pass.
+
+**What moved in the regenerated report, and why**:
+
+- **RPM**: top candidate changed from `1A0` record `05` bytes 1-2 (was
+  70%) to `170` record `01` bytes 4-5 BE (now top at 65%); `1A0` record
+  `05` dropped out of the RPM top-3 entirely -- the tool independently
+  reflecting the same shift this report's manual analysis found (section
+  5), purely from `master-test01`'s much wider pooled value range
+  diluting that candidate's apparent RPM correlation profile.
+- **Raw Water Pressure**: `1A0` record `05` bytes 1-2's score fell from
+  80% to 65% and it's no longer the sole top candidate; `170` record `00`
+  bytes 0-1 BE now appears at 60%.
+- **Coolant Temperature**: top candidate changed from `1E0` record `03`
+  bytes 2-3 to `170` record `03` bytes 0-1 (LE), confidence up from 40% to
+  55% -- reflects the real warm-up trend now visible (section 6).
+- **Battery Voltage**: `00000B41` candidates rose from 45% to 55%, but the
+  record label shown (`record 81`) is itself an artifact of the new
+  handshake-burst evidence -- see the small-sample caveat below.
+- **Fuel/Depth, Oil Pressure**: candidate identities and confidence
+  essentially unchanged (oil pressure stayed at 80%; fuel/depth stayed at
+  40%).
+
+**A methodology caveat surfaced by this run, not hidden from it**: because
+`00000B41` and `0000410B` now show real first-byte variation (the
+handshake burst, section 3), the toolkit's `determine_sequenced_ids` now
+treats them as "sequenced" and groups their frames by first byte the same
+way it groups `170`'s genuine record convention. Some of the resulting
+groups (e.g. `00000B41` record `81`) have only a handful of samples, all
+from the brief startup burst, pooled together with the old five logs'
+complete absence of that record. Those specific candidates' confidence
+numbers should be read with that small-sample caveat in mind rather than
+taken as equally well-supported as, say, the oil-pressure candidate's 80%
+(built from thousands of samples across six experiments).
+
+The mechanically-generated per-byte heat map (change rate, distinct-value
+count) for the full file is available via
+`python tools/smartcraft_decoder.py heatmap tools/samples/logs/master-test01.txt --report <path>`
+and is not re-pasted here in full; nothing in it contradicts the specific
+candidates discussed in sections 5-12.
+
+## 5. RPM hypothesis
+
+**CAN ID**: `170`
+**Bytes**: record `01`, bytes 4-5 (BE) -- current top candidate; record
+`01` byte 5 alone also scores.
+**Observed behavior**: near-zero/noisy through t=66s (key-ON, engine
+OFF), then at **t=66.45s** jumps to 164 and immediately **oscillates
+hard** -- rising to 5454 by t=68.5s, dropping to 3297 by t=69s, rising to
+4796 by t=69.6s, dropping to 3634 by t=70.3s -- a damped "ringing"
+pattern before settling to a noisy plateau (~4300-4600) by t=75-90s.
+Stays essentially flat (spread ~4270-4590) through the long idle
+stretch (t~120-600s), then rises to a modest ~5200-6700 plateau during
+the RPM-step-shaped excursion around t~760-850s.
+**Physical observation**: real RPM (field sheet) is 540-590 through the
+idle stretch (+9% spread) and steps 900->1380->1910->2570 during the
+22:54 RPM test (+186% overall).
+**Evidence FOR**: immediate, jagged onset exactly when the engine catches
+(t=66.45s, ~1.6-2s before the smoother `1A0` candidate) -- consistent
+with a raw crank-speed reading seeing the real roughness of a cold start
+and catch; idle-window stability (~7.5% spread) is a good relative match
+to real RPM's own idle-window stability (~9% spread) over the same
+real-world window.
+**Evidence AGAINST**: the observed rise during the RPM-step window
+(~+29%) is far short of real RPM's own +186% span over the same event; no
+clean 4-level staircase resolves in that window at all, only a smooth
+gradual rise. If this is a raw tachometer count, its gain looks heavily
+compressed relative to the real RPM range.
+**Confidence: moderate.** Onset timing and idle-stability both support
+it; step-test gain does not.
+**Competing hypothesis**: oil pressure (byte 5's ~+29% step-test gain
+sits between real oil pressure's +24% and real RPM's +186%, so it doesn't
+cleanly rule out an oil-pressure-adjacent signal either).
+**Best experiment to distinguish it**: log an actual tachometer reading
+(not just event timing) alongside a capture, ideally with the RPM steps
+each held for a clearly logged, multi-second duration so a scale factor
+(if any) can be fit directly against this byte.
+
+## 6. Coolant-temperature hypothesis
+
+**CAN ID**: `170`
+**Bytes**: record `03`, bytes 0-1 (LE).
+**Observed behavior**: flat at `5,126` for t=0-64s (key-ON, engine OFF),
+then rises to `42,683`(t=120) -> `46,034`(t=360) -> `56,830`(t=480) ->
+`57,423`(t=540) -> `57,642`(t=600) -> `53,085`(t=1020), then becomes
+noisier in the back half of the session (t=956s onward), repeatedly
+dropping to the 8,500-20,000 range, including a rapid two-state toggle
+(`11781`/`5381`) in the file's very last second.
+**Physical observation**: real coolant (field sheet) is 95(22:41) ->
+102(22:43) -> 141(22:47) -> 154(22:49) -> 154(22:50) -> 152(22:51) ->
+159(22:58) -- a sharp early rise (+62% over ~10 minutes) then a plateau
+around 150-160°F.
+**Evidence FOR**: the candidate's shape matches closely -- a sharp early
+rise (+1009% on its own arbitrary units) followed by a plateau starting
+at almost exactly the same real-world checkpoint (t~480-600s in both
+series), a genuinely good match in both timing and shape, independent of
+the two series being on different scales; flat at engine-off, as
+expected.
+**Evidence AGAINST**: the real gauge ticks *up* slightly (152->159)
+between 22:51 and 22:58 while the candidate *drops* (57,642->53,085) over
+the same span; the back-half instability (t=956s onward) has no ground
+truth to check it against (the field sheet's last coolant entry is
+22:58, before this begins) and does not fit a simple monotonic-warm-up-
+then-plateau model.
+**Confidence: moderate-to-good** for the early rise and plateau timing
+(now corroborated against real gauge data); unresolved for the
+late-session behavior.
+**Competing hypothesis**: none strong -- the early-rise/plateau shape and
+timing match is distinctive enough that this is this report's most
+confidently-supported hypothesis (see section 15), though the late-session
+instability is not yet explained by anything.
+**Best experiment to distinguish it**: a capture with ground truth
+extending past ~22:58-equivalent, and ideally through a confirmed
+"Engine STOPPED", to check whether the late-session drops are real
+thermostat cycling or something else.
+
+## 7. Oil-pressure hypothesis
+
+**CAN ID**: `170`
+**Bytes**: record `00`, byte 1 (and the wider bytes 0-1 LE pairing).
+**Observed behavior**: flat at exactly 0 through t=66.7s (key-ON, engine
+OFF), then at t=66.84s starts climbing and immediately becomes jagged and
+noisy (116, 121, ..., 234, then 82, 155, 103, 143, 171, 80, 239, ...) --
+no clean trend, before settling to a noisy oscillation (~50-90) by
+t=85-100s. Declines steadily during the extended idle stretch:
+~84(t=120) -> ~59(t=360) -> ~48(t=480) -> ~38(t=540) -> ~38(t=600), then
+rises again (noisy, up to the 100-220 area) during the RPM-step-shaped
+excursion around t~760-850s. Uses the full 0-255 byte range (256 distinct
+values across the session).
+**Physical observation**: real oil pressure (field sheet) is 0.5 PSI at
+key-on, then **remarkably flat, 49.2-50.3 PSI, across the entire
+extended-idle stretch** (22:43-22:51), rising to 53.3->56.3->61.6->65.9
+PSI during the 22:54 RPM step (+24%), then 46.7 PSI back at idle (22:58).
+**Evidence FOR**: flat at exactly 0 at key-on, matching the real gauge's
+near-zero key-on reading; immediate jagged onset at the moment the engine
+catches, matching the same rough-transient signature as the RPM
+candidate; rises (noisily) during the RPM-step-shaped excursion,
+qualitatively consistent with "increases with RPM"; continuous,
+high-resolution-looking trace (full byte range used), not a status flag.
+**Evidence AGAINST**: the real gauge holds essentially flat (49.2-50.3
+PSI, +/-1 PSI noise) across the same eight-minute idle stretch where this
+candidate **declines by ~55%** (84->38) -- a direct, material
+contradiction, not a minor discrepancy. A real oil-pressure sender
+holding steady for eight minutes should not produce a byte that halves
+over the same window.
+**Confidence: moderate**, downgraded from an initially strong read.
+Something real is happening at the right moments (key-off floor, engine-
+catch onset, RPM-step rise) but the steady-idle behavior directly
+contradicts the real gauge, so this can't be treated as a clean, simple
+encoding of oil pressure. The Phase 2 tool still scores it 80% (section
+4) purely on RPM-rank correlation across the five old discrete logs; it
+has no way to see this steady-idle contradiction, which only this manual
+cross-check surfaces.
+**Competing hypothesis**: a related-but-different quantity (e.g. oil
+pressure convolved with a slow warm-up-coupled term), or something that
+only coincidentally moves with RPM/engine-catch events without actually
+being oil pressure.
+**Best experiment to distinguish it**: log a mechanical oil-pressure
+gauge at several points during a long steady idle (not just at the start
+and end) to see whether real oil pressure genuinely stays flat over that
+span (as this field sheet suggests) or eventually drifts the way this
+byte does over a longer soak.
+
+## 8. Raw-water-pressure hypothesis
+
+**CAN ID**: `1A0`
+**Bytes**: record `05`, bytes 1-2 (LE) (byte 2 alone also scores).
+**Observed behavior**: pegged at exactly `256` for t=0-66s (key-ON,
+engine OFF), then begins a rise at **t=68.426s** -- a clean, smooth,
+strictly monotonic staircase with no backtracking or oscillation
+(`2048 -> 11776 -> 23040 -> 28928 -> 31744 -> 32768 -> 33280 -> 33536 ->
+33792 -> 34048`), reaching a stable plateau (~34,300) by t=81s, a
+~13-second ramp -- starting ~1.6-2s *after* the RPM/oil-pressure
+candidates begin moving, and without their rough, oscillating onset. Only
+58 distinct values across the whole 21.9-minute session (coarse
+quantization). Stays flat (~33,900-34,500, +1.7% spread) through the
+extended idle stretch, then rises to ~36,600-42,200 (+15%) during the
+RPM-step-shaped excursion around t~760-850s.
+**Physical observation**: real water pressure (field sheet) is 0 PSI at
+key-on, 0.6-1.0 PSI through the idle stretch (flat in absolute terms),
+then 1.7->2.8->3.6->4.1 PSI during the 22:54 RPM step -- a **+486%**
+rise, the largest relative swing of any ground-truth signal in this test.
+**Evidence FOR**: onset character is exactly what a downstream hydraulic
+quantity should look like -- smooth, delayed, monotonic, low-pass-filtered
+relative to the engine's actual rough catch, versus the immediate jagged
+onset of the RPM/oil-pressure candidates (section 5); qualitatively
+near-zero-but-not-quite at idle and rising with engine speed, matching
+the real gauge's own near-zero-but-not-quite idle reading; coarse
+58-value quantization is consistent with a lower-resolution pressure
+sensor channel rather than a fine RPM count.
+**Evidence AGAINST**: the real gauge's **+486%** rise during the RPM step
+is far larger than this candidate's observed **+15%** rise in the
+corresponding window -- if this is raw water pressure, its encoding would
+have to heavily compress the reportable range, or the true water-pressure
+byte is a different, not-yet-identified field, or the approximate time
+alignment (section 4) is misplacing the comparison window.
+**Confidence: weak-to-moderate.** The onset-timing evidence still points
+away from raw RPM more than toward it, but the large gain mismatch means
+this should not be treated as a confirmed decode of even the relative
+scale -- only the rough qualitative behavior (near-zero at rest, rises
+with engine speed, hydraulically smoothed).
+**Competing hypothesis**: RPM itself (the original ambiguity -- see
+section 5) or oil pressure (this candidate's own +15% step-test gain is
+closer in order of magnitude to real oil pressure's +24% than to real
+water pressure's +486%, an unresolved wrinkle noted but not settled by
+this report).
+**Best experiment to distinguish it**: a capture where boat speed and
+engine RPM diverge (underway, not a flush/dockside test) so a true
+impeller/water-pump signal and a true crank-speed signal can mechanically
+decouple -- on this test rig the two are locked 1:1, which is the root
+cause of the remaining ambiguity.
+
+## 9. Fuel hypothesis
+
+**CAN ID**: `170`
+**Bytes**: record `00` byte 2; record `01` bytes 1-2 (LE); record `02`
+bytes 0-1 (LE) -- three near-constant candidates, all on the same CAN ID.
+**Observed behavior**: all three stay essentially flat for the entire
+21.9-minute session -- record `00` byte 2 takes only 2 distinct values
+(`4`, `5`) across 13,455 samples; record `01` bytes 1-2 (LE) stays within
+a `29,440`-`29,695` band (248 distinct values, but a span of only 255 out
+of 65,535 possible, <0.4%); record `02` bytes 0-1 (LE) takes only 3
+distinct values, `0`-`4,864`.
+**Physical observation**: real fuel level (field sheet) is **100%**,
+constant, for the entire test.
+**Evidence FOR**: near-constant behavior over 21.9 minutes is consistent
+with a genuinely unchanging fuel level (no burn large enough to move a
+sender meaningfully in this time).
+**Evidence AGAINST**: none of the three candidates sit anywhere near
+their own maximum representable value -- record `00` byte 2 is at 4-5 out
+of 255 (~1.6%), record `01` bytes 1-2 is at ~29,545 out of 65,535 (~45%),
+record `02` bytes 0-1 is at ~2,193 out of 65,535 (~3.3%). If fuel really
+was ~100% and one of these encoded it as a simple 0-to-max percentage, it
+should read at or near its own ceiling -- none of them do. This is a mild
+strike against the simplest version of this hypothesis for all three
+(though a fuel sender's raw output rarely maps linearly onto a byte's
+full range, so it isn't disqualifying).
+**Confidence: weak.** Structurally plausible, near-constant as expected,
+but the "should be near-max at 100% fuel" check fails for all three
+candidates.
+**Competing hypothesis**: depth (section 10) -- structurally
+indistinguishable from fuel with this dataset, since neither varied
+independently during this test. See section 10 for the argument that the
+same CAN ID could plausibly carry both.
+**Best experiment to distinguish it**: compare two captures at
+meaningfully different fuel levels (e.g. before/after a long run, or
+deliberately at a lower tank level) -- a real fuel signal should shift
+noticeably; a reserved/padding or depth-only byte won't.
+
+## 10. Depth hypothesis
+
+**CAN ID**: `170`
+**Bytes**: record `00` byte 2; record `01` bytes 1-2 (LE); record `02`
+bytes 0-1 (LE) -- the same three candidates as section 9.
+**Observed behavior**: identical to section 9 -- all three near-constant
+across the full session.
+**Physical observation**: real depth (field sheet) is 8.9ft at key-on,
+noted to fluctuate between "8.9 and ~9.1ft" over the course of the test
+(a real but very small absolute range).
+**Evidence FOR**: near-constant behavior with only small fluctuations
+matches a stationary/dockside test's depth reading closely -- more
+naturally than it matches a *literal* percentage-of-max reading, since
+this report has no independent knowledge of the depth sender's true
+scale (unlike fuel, where a 100%-full tank gives a specific value to
+check against, and none of these three candidates were near it -- section
+9). Depth's own small real fluctuation (8.9->~9.1ft) has no obvious
+byte-max analog to fail, so this candidate set isn't disqualified by the
+same test that weakened it for fuel.
+**Evidence AGAINST**: exactly the same structural problem as fuel --
+nothing in this capture varies depth independently (a stationary or
+slow-drifting dockside test won't move a depth sender by more than noise),
+so this remains indistinguishable from fuel or from a generic
+reserved/near-constant byte.
+**Confidence: weak**, on par with fuel.
+**Competing hypothesis**: fuel (section 9) -- fully indistinguishable
+with this dataset.
+**On whether the same CAN ID could carry both**: yes, plausibly. All
+three candidates live on `170`, which already carries the (candidate)
+oil-pressure, RPM, and coolant fields in other records of the same
+fragmented message. There's no structural reason fuel and depth couldn't
+each occupy one of these three (or another near-constant) slots within
+the same logical packet, the same way this one ID already appears to
+carry several unrelated engine signals.
+**Best experiment to distinguish it**: compare two captures at genuinely
+different water depths (e.g. different dock/anchorage) -- a real depth
+signal shifts; a fuel-only or reserved byte won't.
+
+## 11. Battery-voltage hypothesis
+
+**CAN ID**: `00000B41`
+**Bytes**: leading-byte-grouped candidates around record `81`/`83` (see
+the small-sample caveat in section 4) -- e.g. record `81` byte 0, bytes
+0-1 (BE), bytes 1-2 (LE).
+**Observed behavior**: this ID's steady-state traffic (from t=5.1s
+onward) alternates between two 3-byte payloads (`83 07 17` / `83 04 FF`)
+on a slow ~15s cadence (section 3); the leading byte's occasional
+excursion to `0x81` during the t=0.1-5.1s startup handshake burst is what
+produces the specific "record 81" candidates the regenerated Phase 2
+report surfaces.
+**Physical observation**: real battery voltage (field sheet) is 13.4V at
+key-on, rising to 13.8-13.9V during the extended idle, and settling at a
+constant 14.0V from the first RPM step test onward through the rest of
+the sheet. The sheet also notes **"Shore power on during this test"** --
+meaning the boat's charger, not (only) the alternator, was likely
+supplying/regulating this voltage, so the classic key-on (~12.5V) ->
+alternator-charging (~13.8-14.2V) step this hypothesis was originally
+framed around may not cleanly apply to this specific test at all.
+**Evidence FOR**: small real fluctuation (13.4->13.8->14.0V, a modest,
+monotonic-ish rise) without tracking RPM -- consistent with a regulated
+rail; the Phase 2 tool's automated score rose from 45% to 55% specifically
+because this capture shows small real movement rather than "literally
+zero fluctuation" (section 4).
+**Evidence AGAINST**: the record-`81` grouping this evidence is attached
+to comes from only a handful of samples in the brief startup burst
+(section 4's small-sample caveat), not the thousands of samples backing
+the oil-pressure or coolant candidates; and because shore power was
+active, this test cannot cleanly exercise the real alternator-driven
+voltage step the hypothesis is meant to detect -- a flat-ish 13.4->14.0V
+rise here is at least as consistent with a shore-power charger's own
+regulation curve as with engine-driven charging.
+**Confidence: weak.** Directionally plausible but built on a small sample
+and confounded by shore power being active for this whole test.
+**Competing hypothesis**: none specific -- the main risk here is simply
+that "shore power on" makes this test unable to distinguish a real
+battery-voltage signal from charger-regulation noise, whatever byte
+carries it.
+**Best experiment to distinguish it**: repeat a capture spanning key-ON
+through cranking and into stable idle **with shore power disconnected**,
+so the expected ~12.5V (resting battery) -> ~13.8-14.2V (alternator
+charging, engine load) step is actually exercised and not masked by a
+charger.
+
+## 12. Trim hypothesis
+
+**CAN ID**: `1A0`
+**Bytes**: record `0B`, bytes 0, 3, and 6 (low-cardinality, correlated
+burst timing).
+**Observed behavior**: a scan for low-cardinality, step-and-hold bytes on
+`170`/`1A0` found `1A0` record `0B` byte 3 taking values
+`{0, 239, 240, 241, 242, 243, 244}` with 29 transitions clustered into
+short bursts (a handful of transitions within a few seconds) at multiple
+distinct points across the session -- roughly t=55-57s, 317-323s,
+423-425s, 524-529s, 697-699s, 826-828s, and 1066-1073s/1131-1136s. Bytes
+0 and 6 of the same record show a subset of these same clusters (fewer,
+binary/3-valued transitions at t=55-57s, 423-425s, 826-828s,
+1066-1073s/1131-1136s).
+**Physical observation**: the field sheet places trim activity at
+22:59-23:00, **7 movements** (Down, Up, Down, Up, Down, Up, Down) -- more
+than the blank template's assumed 5 -- which maps to approximately
+`t~1080-1140s` under this report's time alignment (section 4).
+**Evidence FOR**: the two latest bytes-0/3/6 clusters (t=1066-1073s and
+t=1131-1136s) fall right at the edge of / inside that approximate
+`t~1080-1140s` trim window -- a real, if not exact, timing match given
+only minute-resolution hand timestamps. The burst shape itself (several
+rapid transitions within a few seconds, then quiet) is consistent with a
+relay/pulse-counter response to a handful of quick trim button taps.
+**Evidence AGAINST**: this candidate has *five more* burst clusters
+(t=55-57s, 317-323s, 423-425s, 524-529s, 697-699s) at times with no
+documented trim activity at all (they fall inside the extended-idle
+stretch, 22:43-22:51-ish, well before any trim event on the sheet). Those
+clusters are entirely unexplained -- either trim was informally exercised
+without being logged, or this byte responds to something else that just
+happens to burst periodically (a status ping, a diagnostic poll), and the
+two clusters that do land near the documented trim window are
+coincidental. The cluster count and shape also don't cleanly resolve into
+7 distinct movements the way the RPM candidates cleanly resolved into a
+single sharp engine-start transition (section 5).
+**Confidence: very weak / exploratory.** A real lead worth checking, not
+evidence. Not scored by the formal Phase 2 engine (trim remains "not yet
+testable" there -- section 4).
+**Competing hypothesis**: an unrelated periodic status/diagnostic message
+on the same record that happens to correlate with the trim window by
+chance, given five of its seven total clusters fall outside any
+documented trim activity.
+**Best experiment to distinguish it**: an isolated trim-cycle capture,
+otherwise steady (engine at idle, nothing else changing), with each
+individual Down/Up movement's clock time noted by hand -- so this
+candidate's cluster timing can be checked against real trim events one
+at a time instead of against a single ~1-minute window covering 7 moves
+at once.
+
+## 13. Tach / network participant analysis
+
+**Frame-rate/dropout check**: across the entire 21.9-minute capture, no
+CAN ID shows any gap larger than its own normal periodic cadence -- `170`
+never gaps more than 0.09s, `1A0` more than 0.25s, `1FFD4041` more than
+0.30s, and the ~15s-cadence `00000B41`/`0000410B` pair never gaps more
+than ~15.05s (i.e. never misses a single expected cycle). **There is no
+detectable interruption anywhere in this file on any ID.**
+
+**This is now explained, not just hedged**: the recovered field sheet for
+this test (section 4) has no "Tach Experiment" entries at all -- its
+RPM/trim rows are filled in but the Tach CONNECTED/DISCONNECTED/RECONNECTED
+rows were simply never used. **The tach toggle step was not performed
+during this specific test**, which fully accounts for the absence of any
+traffic disruption -- there's nothing to have caused one. This capture,
+by itself, therefore still says nothing about whether the tach is an
+active network participant; that question remains exactly as open as
+before, just for a confirmed reason now (the experiment wasn't run)
+rather than a suspected one (an earlier draft of this report guessed the
+capture had been cut short).
+
+**What this capture *can* say about "richer traffic now vs. stuck traffic
+before"**: the previously-documented earlier session (`key-cycle.log`,
+`rpm-steps.log`, `trim-cycles.log`, `smartcrafttest.log`) is no longer
+present on disk to re-examine directly -- those four files were never
+committed to the repo and are gone from the machine they were captured
+on, so this comparison relies on the description already recorded in
+`docs/ReverseEngineering.md`/`docs/HypothesisReport.md`: each of those
+four files was a single CAN frame (record `00` of ID `170`) retransmitted
+100,000+ times with no other content, "consistent with a Listen-Only
+capture against a bus with no other node available to ACK it." Given that
+description, ranked explanations for why this capture looks so different:
+
+1. **(Most consistent with the documented symptom) No other node was
+   ACKing the bus in the old captures, and the CAN protocol itself causes
+   this exact failure mode**: a transmitting node whose frame never gets
+   ACKed (no receiver pulls the ACK slot dominant) will retry the *same*
+   frame indefinitely, which is precisely "single frame retransmitted
+   100,000+ times." A pure Listen-Only sniffer never ACKs by design, so if
+   the tach (or any other real bus node) was disconnected and nothing else
+   was listening, the transmitting ECU could plausibly get stuck retrying
+   forever. This is a coherent, protocol-level mechanism, not just a
+   correlation -- and it's the one this task's framing points at
+   (tach disconnected -> old captures; tach connected -> this one). This
+   report cannot independently verify it against raw data anymore (the old
+   files are gone), so it remains the leading *documented* explanation
+   rather than one newly confirmed here.
+2. **The engine may simply not have been running in the old captures.**
+   If the ECU itself wasn't producing real telemetry (key-off, or
+   engine-off with only static/idle-state broadcasts), a single repeated
+   frame is exactly what a healthy-but-idle bus would also produce,
+   independent of the tach. This capture's clean key-on -> crank -> idle
+   transition (section 5) shows what a genuinely running engine's traffic
+   looks like, and it's categorically richer -- but that richness could be
+   "the engine was actually running" rather than "the tach was connected."
+3. **Different capture setup (wiring, termination, bus segment, interface
+   config)** between the two sessions cannot be ruled out either, and
+   would be indistinguishable from (1) or (2) using only the data
+   available now.
+
+This report cannot rank these three definitively -- the raw evidence
+needed to (the old logs' actual frame arbitration/error behavior) no
+longer exists on disk. **Best next experiment**: repeat the tach
+connect/disconnect/reconnect step as its own short, dedicated capture
+(engine running, otherwise steady idle, only the tach's connector
+toggled), filling in the data sheet's "Tach Experiment" timestamps this
+time, so the specific effect (if any) on `00000B41`/`0000410B`/`1FFD4041`
+traffic can be isolated from every other variable.
+
+## 14. Comparison with previous captures
+
+| | Five short sample logs (`idle`/`1000rpm`/`1650rpm`/`1900rpm`/`idle2`) | `master-test01` |
+|---|---|---|
+| Total duration | ~8.4 minutes across 5 separate files | 21.9 minutes, one continuous file |
+| Capture structure | Five independent steady-state snapshots | One continuous session incl. key-on, crank, idle, RPM steps, trim cycles |
+| CAN IDs seen | `170`, `1A0`, `1E0`, `1F0`, `00000B41`, `0000410B` | Same six, plus `1FFD4041`, `0E3790F3`, and 3 singleton IDs |
+| `00000B41`/`0000410B` structure | Appeared as fixed-length, constant/near-constant atomic messages | Revealed to be a multi-shape handshake + steady periodic pair (section 3) |
+| Key-on/engine-off phase captured? | No | Yes (first ~66s) |
+| Warm-up window captured? | No | Yes, up to the last logged RPM point (~22:58/23:03-equivalent) |
+| Ground-truth gauge log available? | No | Yes -- field sheet, section 4 |
+| Stuck/retry traffic | None | None |
+
+The now-unrecoverable earlier session (`key-cycle.log` etc.) is described
+only qualitatively above (section 13) since the raw files no longer exist
+on disk to re-run through this repo's tools.
+
+**What actually changed between the five short logs and this capture**:
+mainly *scope*, not *quality* -- the five short logs were already clean,
+real telemetry (per the existing Data Quality note in
+`docs/HypothesisReport.md`), just narrow in time and missing any
+transient/startup/warm-up window. This capture doesn't contradict that
+data; it extends it, and in doing so exposes structure (the `00000B41`/
+`0000410B` handshake, the coolant candidate's real warm-up trend, the
+oil-pressure candidate's real-gauge contradiction, the RPM/water-pressure
+ambiguity's sharper but still-unresolved shape) that a handful of
+90-second steady-state snapshots never could.
+
+## 15. Current confidence table
+
+| Signal | Leading candidate | This report | Phase 2 tool (post-update) |
+|---|---|---|---|
+| Coolant Temperature | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good** -- real early-rise/plateau shape and timing match the field sheet; late-session instability unexplained | 55% |
+| Oil Pressure | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Moderate** (downgraded) -- right behavior at key events, but contradicts the field sheet's flat-idle reading | 80% (tool doesn't see the contradiction) |
+| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate** -- immediate rough-transient onset matches expected cranking/catch roughness and idle-stability matches; step-test gain far short of real RPM's range | 65% (top candidate) |
+| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Weak-to-moderate** (downgraded) -- onset timing/shape still favors this over RPM, but step-test gain is far short of real water pressure's +486% | 65% (RPM top-3) / 60% (RWP top-3) |
+| Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
+| Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
+| Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, and shore power confounds the expected alternator step | 55% |
+| Trim | `1A0` rec `0B` bytes 0, 3, 6 (tentative, new) | **Very weak / exploratory** -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |
+| Engine/mode status flag | `1A0` rec `00` bytes 1-2 (not one of the named hypotheses) | Steps at the same 5 timestamps as the RPM/pressure segment boundaries -- a corroborating structural signal, not a physical-value candidate | n/a |
+
+## 16. Remaining unknowns
+
+- No independent, second-by-second gauge/tachometer log exists -- the
+  field sheet gives real values but at minute resolution with
+  "approximate" timestamps, so exact numeric correlation at the level of
+  a single RPM step is not reliable (section 4).
+- RPM and raw water pressure remain mechanically coupled 1:1 on this test
+  rig (no independent boat-speed variation), so section 8's
+  disambiguation is based on response character and magnitude, not a case
+  where the two physical quantities actually diverge.
+- The oil-pressure candidate's steady-idle decline directly contradicts
+  the field sheet's flat real reading over the same window, and this is
+  not yet explained (section 7).
+- The coolant candidate's late-session instability is unexplained; there
+  is no ground truth covering that window to check it against.
+- The trim hypothesis is still not confirmed -- 5 of 7 burst clusters on
+  the leading candidate fall at times with no documented trim activity
+  (section 12).
+- The tach connect/disconnect/reconnect experiment was not performed
+  during this specific test (confirmed by the field sheet); the "is the
+  tach an active network participant" question is still open (section
+  13).
+- `00000B41`/`0000410B`'s true framing convention (address-claim /
+  request-response handshake) is inferred from timing and shape, not
+  confirmed against any protocol spec.
+- Battery voltage cannot be cleanly tested in this capture because shore
+  power was active throughout (section 11).
+- Whether the earlier, ~18-hour-prior "stuck" session was really caused
+  by the tach being disconnected (vs. engine-off, vs. capture-rig
+  differences) cannot be re-tested now that those raw files no longer
+  exist on disk (section 13).
+
+## 17. Best next experiment
+
+**A short, isolated tach connect/disconnect/reconnect capture**, engine
+running and otherwise held steady at idle, with the data sheet's "Tach
+Experiment" section actually filled in (disconnect/reconnect timestamps
+noted by the clock, ideally to the second). This is the single
+highest-value follow-up: it directly tests section 13's still-open
+question, and unlike most of this report it doesn't require solving the
+RPM/oil-pressure/water-pressure mechanical-coupling problem to be
+informative.
+
+Close behind, roughly in priority order:
+
+1. **A capture with shore power disconnected**, so the battery-voltage
+   hypothesis (section 11) can actually be tested against the real
+   key-on -> alternator-charging step instead of a shore-charger-confounded
+   reading.
+2. **A repeat of the oil-pressure check**: log a mechanical gauge at
+   several points during a long steady idle (not just start/end) to see
+   whether real oil pressure ever declines the way `170` record `00`
+   byte 1 does, or whether that decline is this candidate tracking
+   something else.
+3. **An isolated trim-cycle capture** with each individual Down/Up
+   movement's clock time noted by hand, to test the `1A0` record `0B`
+   lead against real events one at a time instead of a single multi-move
+   window.
+4. **A capture with second-resolution (not minute-resolution) ground
+   truth timestamps** during the RPM-step portion specifically, so the
+   still-unresolved RPM/oil-pressure/water-pressure three-way gain
+   comparison (sections 5, 7, 8) can be checked against correctly-aligned
+   data instead of an approximate +/-30-60s window.

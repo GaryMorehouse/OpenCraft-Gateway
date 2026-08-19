@@ -179,5 +179,28 @@ class TestFuelOrDepthScoring(unittest.TestCase):
         self.assertTrue(any("RPM" in reason for reason in result.evidence_against))
 
 
+class TestStabilityExcludesContinuousExperiments(unittest.TestCase):
+    def test_continuous_session_does_not_tank_stability_for_a_real_rpm_signal(self):
+        experiments_with_continuous = EXPERIMENTS + [
+            Experiment(
+                "master-test01", None, rpm_rank=None, session_order=5,
+                tags=("field_session", "continuous"),
+            ),
+        ]
+        traces = {
+            "idle": trace([10, 10, 11]),
+            "1000rpm": trace([40, 41, 40]),
+            "1650rpm": trace([70, 71, 70]),
+            "1900rpm": trace([100, 101, 100]),
+            "idle2": trace([10, 11, 10]),
+            # A continuous session genuinely sweeps through every RPM
+            # condition -- that's real signal, not noise, and shouldn't be
+            # treated as "unstable" the way it would within one steady log.
+            "master-test01": trace([10, 40, 70, 100, 70, 40, 10]),
+        }
+        features = compute_features(KEY, traces, experiments_with_continuous)
+        self.assertGreaterEqual(features.stability, 0.8)
+
+
 if __name__ == "__main__":
     unittest.main()
