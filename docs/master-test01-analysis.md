@@ -479,11 +479,18 @@ cross-check surfaces.
 pressure convolved with a slow warm-up-coupled term), or something that
 only coincidentally moves with RPM/engine-catch events without actually
 being oil pressure.
-**Best experiment to distinguish it**: log a mechanical oil-pressure
-gauge at several points during a long steady idle (not just at the start
-and end) to see whether real oil pressure genuinely stays flat over that
-span (as this field sheet suggests) or eventually drifts the way this
-byte does over a longer soak.
+**Best experiment to distinguish it**: at a brief, steady idle,
+**disconnect the oil-pressure sending unit's electrical connector for
+~10-15 seconds** (real oil pressure is unaffected -- only the sensor
+signal is interrupted), with the disconnect/reconnect moments noted to
+the second, then reconnect. Whichever CAN byte snaps to a fixed
+fault/out-of-range value at that exact moment and ignores RPM until
+reconnection is almost certainly the true oil-pressure field; any
+candidate that keeps behaving normally through the disconnect can be
+ruled out. This is sharper than logging a gauge at several points because
+it breaks the RPM correlation for *only* the true oil-pressure signal,
+leaving RPM and every other candidate unaffected -- see the caution about
+possible low-oil-pressure alarms/rev-limiting in section 17.
 
 ## 8. Raw-water-pressure hypothesis
 
@@ -550,12 +557,23 @@ this report).
 engine RPM diverge (underway, not a flush/dockside test) so a true
 impeller/water-pump signal and a true crank-speed signal can mechanically
 decouple -- on this test rig the two are locked 1:1, which is the root
-cause of the remaining ambiguity. Also useful: an RPM step test with a
-real, continuous tachometer log (not hand-read snapshots) held genuinely
-steady at each target (a governor/cruise-control-style throttle, or a
-much more careful manual hold), so the true in-between RPM/oil/water
-waveform is known and this candidate's shape can be checked against it
-directly rather than inferred.
+cause of the remaining ambiguity. More immediately actionable: **the same
+sender-disconnect technique proposed for oil pressure (section 7)** --
+briefly unplugging the raw-water-pressure sending unit's connector at a
+steady idle (real water pressure is unaffected; only the sensor signal
+is interrupted) and noting the disconnect/reconnect times to the second.
+If this candidate is truly raw water pressure, it should snap to a fixed
+fault value at the moment of disconnect and ignore RPM until reconnected
+-- the same way the oil-pressure test in section 7 would confirm or rule
+out that byte. Doing both sender disconnects (oil, then water) in one
+short, otherwise-steady idle capture could resolve sections 7 and 8
+together without needing to solve the throttle-control problem at all.
+Also useful, if available: an RPM step test with a real, continuous
+tachometer log (not hand-read snapshots) held genuinely steady at each
+target (a governor/cruise-control-style throttle, or a much more careful
+manual hold), so the true in-between RPM/oil/water waveform is known and
+this candidate's shape can be checked against it directly rather than
+inferred.
 
 ## 9. Fuel hypothesis
 
@@ -909,37 +927,48 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 
 ## 17. Best next experiment
 
-**A short, isolated, controlled tach-connected vs. tach-disconnected
+Two experiments now share top priority, since they answer different
+questions and neither depends on the other:
+
+**A. A short, isolated, controlled tach-connected vs. tach-disconnected
 comparison**, engine running and otherwise held steady at idle, with the
 data sheet's "Tach Experiment" section actually filled in
 (disconnect/reconnect timestamps noted by the clock, ideally to the
-second). This is the single highest-value follow-up: the capture history
-so far shows a real correlation -- the earlier unusable session had the
-tach disconnected, `master-test01` had it connected and was healthy --
-but with only two captures that also differ in every other way, that
-correlation is not evidence of causation on its own (section 13). A
-capture that toggles *only* the tach's connection, with everything else
-held constant (engine running, steady idle, same rig, same session), is
-what would finally let this question be tested cleanly. Unlike most of
-this report it also doesn't require solving the RPM/oil-pressure/
-water-pressure mechanical-coupling problem to be informative.
+second). The capture history so far shows a real correlation -- the
+earlier unusable session had the tach disconnected, `master-test01` had
+it connected and was healthy -- but with only two captures that also
+differ in every other way, that correlation is not evidence of causation
+on its own (section 13). A capture that toggles *only* the tach's
+connection, with everything else held constant, is what would finally let
+this question be tested cleanly.
 
-Close behind, roughly in priority order:
+**B. A brief oil-pressure and raw-water-pressure sender-disconnect test**
+(sections 7 and 8): at a steady idle, unplug the oil-pressure sending
+unit's electrical connector for ~10-15 seconds (real oil pressure is
+unaffected -- only the sensor signal is interrupted), reconnect, then
+repeat for the raw-water-pressure sender, each disconnect/reconnect
+timestamped to the second. Whichever CAN byte snaps to a fixed
+fault/out-of-range value at each disconnect and ignores RPM until
+reconnection is very likely that physical signal -- a much sharper,
+single-variable test than trying to correlate against RPM, and it doesn't
+depend on ever getting a clean, steady RPM hold. **Caution**: the ECM may
+read "no signal" from a disconnected oil-pressure sender as critically
+low pressure and trigger an alarm or, on some SmartCraft-integrated ECMs,
+a protective rev-limit/reduced-power response -- do this briefly, at idle
+only, never at elevated RPM, with someone ready to reconnect immediately.
+
+Both A and B can plausibly be combined into one otherwise-steady-idle
+session if convenient. Close behind, roughly in priority order:
 
 1. **A capture with shore power disconnected**, so the battery-voltage
    hypothesis (section 11) can actually be tested against the real
    key-on -> alternator-charging step instead of a shore-charger-confounded
    reading.
-2. **A repeat of the oil-pressure check**: log a mechanical gauge at
-   several points during a long steady idle (not just start/end) to see
-   whether real oil pressure ever declines the way `170` record `00`
-   byte 1 does, or whether that decline is this candidate tracking
-   something else.
-3. **An isolated trim-cycle capture** with each individual Down/Up
+2. **An isolated trim-cycle capture** with each individual Down/Up
    movement's clock time noted by hand, to test the `1A0` record `0B`
    lead against real events one at a time instead of a single multi-move
    window.
-4. **A capture with second-resolution (not minute-resolution) ground
+3. **A capture with second-resolution (not minute-resolution) ground
    truth** during the RPM-step portion specifically, ideally each target
    RPM actually held steady rather than approached by overshoot and
    correction (a governor, cruise-control-style throttle, or a much more
