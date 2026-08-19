@@ -243,9 +243,20 @@ movements. From that starting position, the 22:59-23:00 sequence is
 **three full up/down cycles (6 movements: Up, Down, Up, Down, Up,
 Down)**; the sheet's own first "Down" entry at 22:59 restates the
 already-established starting position rather than logging a new move.
-See section 12. A second page lists fuel consumption (0.7, 1.1, 1.5, 1.7,
-1.9, 0.8 Gal/Hr), presumably corresponding to the idle/900/1380/1910/2570/idle
-sequence, though not explicitly linked row-by-row.
+See section 12. **RPM control note (confirmed directly by Gary)**: the
+RPM steps were not held steady at each target -- it was easy to overshoot
+the intended test RPM by hand, so the throttle was repeatedly pulled back
+and eased up to settle near each target value. The single RPM (and
+oil/water PSI) figure logged per step in the table above is therefore an
+approximate snapshot taken once things looked roughly settled, not a
+reading from a clean, held plateau -- the engine's actual instantaneous
+RPM (and, since both respond quickly to RPM, oil pressure and water
+pressure) most likely oscillated noticeably around each target during
+this maneuvering, wider than the single logged number implies. This
+matters directly for sections 5, 7, and 8. A second page lists fuel
+consumption (0.7, 1.1, 1.5, 1.7, 1.9, 0.8 Gal/Hr), presumably
+corresponding to the idle/900/1380/1910/2570/idle sequence, though not
+explicitly linked row-by-row.
 
 **This changes two of the generic ground-truth assumptions the task
 started from**: fuel reads **100%** throughout this specific test, not
@@ -351,14 +362,28 @@ idle stretch (+9% spread) and steps 900->1380->1910->2570 during the
 with a raw crank-speed reading seeing the real roughness of a cold start
 and catch; idle-window stability (~7.5% spread) is a good relative match
 to real RPM's own idle-window stability (~9% spread) over the same
-real-world window.
+real-world window. **The candidate's own jaggedness during the RPM-step
+window is now better explained, not just noise**: per Gary, the RPM steps
+were not held steady -- it was easy to overshoot the target, so the
+throttle was repeatedly pulled back and eased up to settle near each
+value (section 4). A genuine raw-RPM signal during that kind of manual
+overshoot/correction should look bumpy and non-monotonic, not like a
+clean staircase, and that's exactly this candidate's shape in that window
+(section 5's earlier fine-grained trace shows real back-and-forth
+movement, not a smooth ramp).
 **Evidence AGAINST**: the observed rise during the RPM-step window
-(~+29%) is far short of real RPM's own +186% span over the same event; no
-clean 4-level staircase resolves in that window at all, only a smooth
-gradual rise. If this is a raw tachometer count, its gain looks heavily
-compressed relative to the real RPM range.
-**Confidence: moderate.** Onset timing and idle-stability both support
-it; step-test gain does not.
+(~+29%) is far short of real RPM's own +186% span between the logged
+step values -- and, since those logged values are themselves approximate
+snapshots of a moving target rather than held plateaus (section 4), the
+engine's true instantaneous range was most likely wider still. If this is
+a raw tachometer count, its gain looks heavily compressed relative to the
+real RPM range even accounting for that uncertainty. The absence of a
+clean 4-level staircase, by itself, is no longer treated as evidence
+against this candidate (see above) -- but the gain shortfall remains a
+real, unresolved gap.
+**Confidence: moderate.** Onset timing, idle-stability, and the
+step-test's jagged *shape* all now support it; step-test *gain* still
+does not.
 **Competing hypothesis**: oil pressure (byte 5's ~+29% step-test gain
 sits between real oil pressure's +24% and real RPM's +186%, so it doesn't
 cleanly rule out an oil-pressure-adjacent signal either).
@@ -422,12 +447,20 @@ values across the session).
 key-on, then **remarkably flat, 49.2-50.3 PSI, across the entire
 extended-idle stretch** (22:43-22:51), rising to 53.3->56.3->61.6->65.9
 PSI during the 22:54 RPM step (+24%), then 46.7 PSI back at idle (22:58).
+Per Gary, the RPM steps themselves were not held steady (throttle
+repeatedly overshot and corrected -- section 4), so oil pressure being
+RPM-driven, these four logged PSI values are approximate snapshots of a
+fluctuating condition, not readings from a held plateau -- the true
+in-between range was likely wider and bumpier than +24% implies.
 **Evidence FOR**: flat at exactly 0 at key-on, matching the real gauge's
 near-zero key-on reading; immediate jagged onset at the moment the engine
 catches, matching the same rough-transient signature as the RPM
-candidate; rises (noisily) during the RPM-step-shaped excursion,
-qualitatively consistent with "increases with RPM"; continuous,
-high-resolution-looking trace (full byte range used), not a status flag.
+candidate; rises noisily during the RPM-step-shaped excursion, and that
+noisiness is now better explained than before -- a real oil-pressure
+sender responding to a manually overshot-and-corrected throttle should
+look exactly this jagged, not like a clean staircase (section 5);
+continuous, high-resolution-looking trace (full byte range used), not a
+status flag.
 **Evidence AGAINST**: the real gauge holds essentially flat (49.2-50.3
 PSI, +/-1 PSI noise) across the same eight-minute idle stretch where this
 candidate **declines by ~55%** (84->38) -- a direct, material
@@ -471,25 +504,43 @@ RPM-step-shaped excursion around t~760-850s.
 key-on, 0.6-1.0 PSI through the idle stretch (flat in absolute terms),
 then 1.7->2.8->3.6->4.1 PSI during the 22:54 RPM step -- a **+486%**
 rise, the largest relative swing of any ground-truth signal in this test.
-**Evidence FOR**: onset character is exactly what a downstream hydraulic
-quantity should look like -- smooth, delayed, monotonic, low-pass-filtered
-relative to the engine's actual rough catch, versus the immediate jagged
-onset of the RPM/oil-pressure candidates (section 5); qualitatively
-near-zero-but-not-quite at idle and rising with engine speed, matching
-the real gauge's own near-zero-but-not-quite idle reading; coarse
-58-value quantization is consistent with a lower-resolution pressure
-sensor channel rather than a fine RPM count.
+As with oil pressure (section 7), these four step-test readings are
+approximate snapshots taken while the throttle was being manually
+overshot and corrected, not held-plateau values (section 4) -- water
+pressure, being directly impeller/pump driven, likely tracked those RPM
+swings quickly and visibly, not just the four logged numbers.
+**Evidence FOR**: onset character *at the initial engine catch*
+(t=66-90s, a one-time transient, separate from the RPM-step test) is
+exactly what a downstream hydraulic quantity should look like -- smooth,
+delayed, monotonic, low-pass-filtered relative to the engine's actual
+rough catch, versus the immediate jagged onset of the RPM/oil-pressure
+candidates (section 5); qualitatively near-zero-but-not-quite at idle and
+rising with engine speed, matching the real gauge's own
+near-zero-but-not-quite idle reading; coarse 58-value quantization is
+consistent with a lower-resolution pressure sensor channel rather than a
+fine RPM count.
 **Evidence AGAINST**: the real gauge's **+486%** rise during the RPM step
 is far larger than this candidate's observed **+15%** rise in the
-corresponding window -- if this is raw water pressure, its encoding would
-have to heavily compress the reportable range, or the true water-pressure
-byte is a different, not-yet-identified field, or the approximate time
-alignment (section 4) is misplacing the comparison window.
-**Confidence: weak-to-moderate.** The onset-timing evidence still points
-away from raw RPM more than toward it, but the large gain mismatch means
-this should not be treated as a confirmed decode of even the relative
-scale -- only the rough qualitative behavior (near-zero at rest, rises
-with engine speed, hydraulically smoothed).
+corresponding window. Beyond the raw gain shortfall, **this candidate's
+smoothness during the RPM-step window itself is now a harder problem for
+this hypothesis, not a point in its favor**: if the throttle was being
+overshot and corrected by hand (section 4), a real water-pressure sender
+-- responding quickly to a bouncing RPM -- should plausibly show some of
+that same bumpiness during that specific window, the way the oil-pressure
+and RPM candidates do (section 5, 7). This candidate stays comparatively
+smooth there instead. (The separate, one-time engine-catch transient
+above is a different event and isn't undermined by this -- a single
+clean catch-to-idle ramp doesn't imply anything about behavior during a
+later, differently-shaped RPM-step maneuver.) Alternatively, its encoding
+could simply compress the reportable range heavily, or the true
+water-pressure byte is a different, not-yet-identified field, or the
+approximate time alignment (section 4) is misplacing the comparison
+window -- this report cannot distinguish between these explanations.
+**Confidence: weak.** Downgraded further -- the engine-catch onset-timing
+evidence still points away from raw RPM more than toward it, but the
+gain mismatch plus the RPM-step window's unexpected smoothness (given the
+throttle technique) both now argue against a clean water-pressure
+identity too, not just against RPM.
 **Competing hypothesis**: RPM itself (the original ambiguity -- see
 section 5) or oil pressure (this candidate's own +15% step-test gain is
 closer in order of magnitude to real oil pressure's +24% than to real
@@ -499,7 +550,12 @@ this report).
 engine RPM diverge (underway, not a flush/dockside test) so a true
 impeller/water-pump signal and a true crank-speed signal can mechanically
 decouple -- on this test rig the two are locked 1:1, which is the root
-cause of the remaining ambiguity.
+cause of the remaining ambiguity. Also useful: an RPM step test with a
+real, continuous tachometer log (not hand-read snapshots) held genuinely
+steady at each target (a governor/cruise-control-style throttle, or a
+much more careful manual hold), so the true in-between RPM/oil/water
+waveform is known and this candidate's shape can be checked against it
+directly rather than inferred.
 
 ## 9. Fuel hypothesis
 
@@ -803,8 +859,8 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 |---|---|---|---|
 | Coolant Temperature | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good** -- real early-rise/plateau shape and timing match the field sheet; late-session instability unexplained | 55% |
 | Oil Pressure | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Moderate** (downgraded) -- right behavior at key events, but contradicts the field sheet's flat-idle reading | 80% (tool doesn't see the contradiction) |
-| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate** -- immediate rough-transient onset matches expected cranking/catch roughness and idle-stability matches; step-test gain far short of real RPM's range | 65% (top candidate) |
-| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Weak-to-moderate** (downgraded) -- onset timing/shape still favors this over RPM, but step-test gain is far short of real water pressure's +486% | 65% (RPM top-3) / 60% (RWP top-3) |
+| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate** -- immediate rough-transient onset matches expected cranking/catch roughness, idle-stability matches, and the step-test's jaggedness now matches the manually overshot/corrected throttle technique; step-test gain still far short of real RPM's range | 65% (top candidate) |
+| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Weak** (downgraded further) -- engine-catch onset timing/shape still favors this over RPM, but step-test gain is far short of real water pressure's +486%, and this candidate stays smooth during the RPM-step window where a real RPM-driven pressure should plausibly have been bumpy too | 65% (RPM top-3) / 60% (RWP top-3) |
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
 | Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, and shore power confounds the expected alternator step | 55% |
@@ -816,7 +872,12 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 - No independent, second-by-second gauge/tachometer log exists -- the
   field sheet gives real values but at minute resolution with
   "approximate" timestamps, so exact numeric correlation at the level of
-  a single RPM step is not reliable (section 4).
+  a single RPM step is not reliable (section 4). Compounding this: the
+  RPM steps themselves were not held steady (the throttle was manually
+  overshot and corrected -- section 4), so even the logged step values are
+  approximate snapshots of a moving target, not clean plateau readings --
+  the true instantaneous RPM/oil/water waveform during the step test is
+  unknown, only inferred.
 - RPM and raw water pressure remain mechanically coupled 1:1 on this test
   rig (no independent boat-speed variation), so section 8's
   disambiguation is based on response character and magnitude, not a case
@@ -879,7 +940,10 @@ Close behind, roughly in priority order:
    lead against real events one at a time instead of a single multi-move
    window.
 4. **A capture with second-resolution (not minute-resolution) ground
-   truth timestamps** during the RPM-step portion specifically, so the
-   still-unresolved RPM/oil-pressure/water-pressure three-way gain
-   comparison (sections 5, 7, 8) can be checked against correctly-aligned
-   data instead of an approximate +/-30-60s window.
+   truth** during the RPM-step portion specifically, ideally each target
+   RPM actually held steady rather than approached by overshoot and
+   correction (a governor, cruise-control-style throttle, or a much more
+   careful manual hold), so the still-unresolved RPM/oil-pressure/
+   water-pressure three-way gain comparison (sections 5, 7, 8) can be
+   checked against a known, clean waveform instead of an approximate,
+   possibly-bumpy snapshot.
