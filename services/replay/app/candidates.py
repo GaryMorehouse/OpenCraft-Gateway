@@ -373,11 +373,20 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             "up/down cycles (6 movements: Up, Down, Up, Down, Up, Down) -- "
             "raw 1 mapped to +1 (Up) and raw 2 to -1 (Down) purely to match "
             "that order; which physical direction is actually 1 vs 2 is "
-            "inferred from ordering, not independently confirmed. Almost "
-            "certainly a trim motor direction/active status flag (0=idle), "
-            "not a continuous position sender -- distinct from the older, "
-            "much weaker 'Trim candidate' above, which guesses at a "
-            "continuous 0-100% position on a different byte.",
+            "inferred from ordering, not independently confirmed. Not a "
+            "continuous position sender -- during each ~8s pulse the raw "
+            "value holds flat rather than stepping through intermediates "
+            "(checked directly, 2026-08-20), distinct from the older, much "
+            "weaker 'Trim candidate' above, which guesses at a continuous "
+            "0-100% position on a different byte. Gary's own assessment "
+            "(2026-08-20), having operated the trim switch himself during "
+            "this test: most likely a trim Up/Down button indicator "
+            "reflecting the operator's switch position, rather than raw "
+            "motor-movement telemetry -- physically consistent with the "
+            "~8s pulse length (plausible for how long a button is held per "
+            "stroke). Treated as the leading interpretation, though the "
+            "switch-position-vs-motor-movement distinction hasn't been "
+            "independently tested.",
         ),
     ),
     ReplayCandidate(

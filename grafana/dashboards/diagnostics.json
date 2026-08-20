@@ -874,8 +874,8 @@
     {
       "id": 18,
       "type": "gauge",
-      "title": "Trim Direction (GUESS)",
-      "description": "New structural finding, 2026-08-20 -- not one of the formal Phase 2 tool's 6 named hypotheses, so unscored (confidence -1). Sits at 0 for the entire 22-minute file except for exactly 6 pulses (t=1033.3-1110.1s, straddling the field sheet's 22:59 mark) cleanly alternating between raw 1 and raw 2 -- an exact count/order match for the field sheet's 3 full up/down cycles. Mapped to +1 (Up) / -1 (Down) / 0 (idle) purely to match that documented order; which raw value is physically which direction is inferred, not independently confirmed. Distinct from the older, much weaker 'Trim (GUESS)' position gauge -- see docs/master-test01-analysis.md section 12.",
+      "title": "Trim Up/Down Indicator (GUESS)",
+      "description": "New structural finding, 2026-08-20 -- not one of the formal Phase 2 tool's 6 named hypotheses, so unscored (confidence -1). Sits at 0 for the entire 22-minute file except for exactly 6 pulses (t=1033.3-1110.1s, straddling the field sheet's 22:59 mark) cleanly alternating between raw 1 and raw 2 -- an exact count/order match for the field sheet's 3 full up/down cycles. Mapped to +1 (Up) / -1 (Down) / 0 (idle) purely to match that documented order; which raw value is physically which direction is inferred, not independently confirmed. Confirmed NOT a continuous position sender (holds flat through each pulse). Gary's own interpretation, having operated the trim switch during this test: most likely a trim Up/Down button indicator reflecting the operator's switch position, not raw motor-movement telemetry -- consistent with the ~8s pulse length. Distinct from the older, much weaker 'Trim (GUESS)' position gauge -- see docs/master-test01-analysis.md section 12.",
       "gridPos": {
         "h": 8,
         "w": 6,

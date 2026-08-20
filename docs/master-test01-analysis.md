@@ -1046,20 +1046,30 @@ pulses 2-6 -- plausibly some initial switch bounce on the very first
 movement, or the true state during the transition instant, not something
 that undermines the rest of the pattern.
 **Evidence AGAINST**: this byte only ever takes 3 distinct values (0, 1,
-2) -- it is almost certainly a discrete motor-direction/active status
-flag, not a continuous position sender, so it cannot answer "what trim
+2) -- it is a discrete status flag, not a continuous position sender
+(confirmed directly, 2026-08-20: during each ~8s pulse the raw value
+holds flat rather than stepping through intermediates -- see the
+"searched and not found" note below), so it cannot answer "what trim
 angle" the way a real position candidate would; it only answers "was trim
-moving, and in roughly which of two states." Which raw value corresponds
-to physically "Up" vs "Down" is inferred purely from matching the sheet's
-stated order (1=first movement=Up, 2=second=Down, ...), not independently
-confirmed -- an isolated single-direction trim test (see section 17) would
-confirm or refute this assignment directly.
-**Confidence: moderate-to-good** for "this byte reflects trim motor
-activity/direction," clearly stronger than the original candidate below;
-still unconfirmed for the specific 1=Up/2=Down direction assignment. Not
-one of the formal Phase 2 tool's 6 named hypotheses (trim was never
-one), so carries an unscored (-1) confidence in replay rather than a
-percentage -- see `docs/replay.md`.
+being commanded, and in roughly which of two states." Which raw value
+corresponds to physically "Up" vs "Down" is inferred purely from matching
+the sheet's stated order (1=first movement=Up, 2=second=Down, ...), not
+independently confirmed -- an isolated single-direction trim test (see
+section 17) would confirm or refute this assignment directly.
+**Gary's own interpretation (2026-08-20)**, having operated the trim
+switch himself during this test: this is most likely a **trim Up/Down
+button indicator** -- reflecting the operator's switch position -- rather
+than raw motor-movement telemetry. That's physically consistent with the
+~8s pulse length (a plausible duration to hold a trim button per stroke)
+and is treated as the leading interpretation here, though the specific
+switch-position-vs-motor-movement distinction hasn't been independently
+tested.
+**Confidence: moderate-to-good** for "this byte reflects the trim
+Up/Down control being engaged," clearly stronger than the original
+candidate below; still unconfirmed for the specific 1=Up/2=Down
+assignment. Not one of the formal Phase 2 tool's 6 named hypotheses (trim
+was never one), so carries an unscored (-1) confidence in replay rather
+than a percentage -- see `docs/replay.md`.
 **Best experiment to distinguish it further**: an isolated single-movement
 trim test (just one Up, or just one Down, at a known clock time, engine
 otherwise idle) would confirm both the direction assignment and rule out
@@ -1318,7 +1328,7 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
 | Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |
-| Trim Direction | `170` rec `03` byte 2 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- exactly 6 alternating pulses, matching the field sheet's 6-movement count and Up/Down/Up/Down/Up/Down order exactly, isolated to one ~77s span with zero occurrences anywhere else in the 22-minute file | not one of the 6 named hypotheses (unscored) |
+| Trim Direction (likely Up/Down button indicator, per Gary) | `170` rec `03` byte 2 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- exactly 6 alternating pulses, matching the field sheet's 6-movement count and Up/Down/Up/Down/Up/Down order exactly, isolated to one ~77s span with zero occurrences anywhere else in the 22-minute file; discrete flag, not a continuous position (confirmed) | not one of the 6 named hypotheses (unscored) |
 | Trim (original candidate) | `1A0` rec `0B` bytes 0, 3, 6 | **Very weak / exploratory**, superseded above -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |
 | Engine/mode status flag | `1A0` rec `00` bytes 1-2 (not one of the named hypotheses) | Steps at the same 5 timestamps as the RPM/pressure segment boundaries -- a corroborating structural signal, not a physical-value candidate | n/a |
 | Engine Hours/Minutes | `1A0` rec `02` byte 3 (new, 2026-08-20, not one of the named hypotheses) | **Strong structural evidence** -- wall-clock-paced counter (59.576s mean interval, stdev 0.006s across 21 ticks), categorically unlike every frame-driven counter elsewhere in this capture | not yet run through the formal 6-hypothesis tool (unscored) |

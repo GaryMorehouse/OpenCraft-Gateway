@@ -231,7 +231,14 @@ sheet's Up/Down/Up/Down/Up/Down sequence exactly. See
 breakdown. The original "Trim (GUESS)" position gauge (`1A0` record `0B`
 byte 3) is kept as a separate, still-weak candidate -- it estimates a
 continuous 0-100% position, which this new candidate cannot do (it's a
-discrete direction/activity flag, not a position sender).
+discrete flag, not a position sender -- confirmed 2026-08-20 by checking
+that it holds flat through each pulse rather than stepping through
+intermediates, and a separate search for a genuine continuous position
+signal in the same window found nothing real). Gary's own interpretation,
+having operated the trim switch during this test: most likely a trim
+Up/Down button indicator (operator switch position), not raw
+motor-movement telemetry -- the panel is titled "Trim Up/Down Indicator
+(GUESS)" accordingly.
 
 **A guess reading "wrong" is itself useful evidence, not a failure.** An
 `UNANCHORED` (or a poorly-`FITTED`) guess reading implausibly isn't this
