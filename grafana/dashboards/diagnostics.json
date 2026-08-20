@@ -427,7 +427,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"RPM\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"RPM candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -478,7 +478,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Coolant Temperature\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Coolant Temperature candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -529,7 +529,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -580,7 +580,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Raw Water Pressure\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Raw Water Pressure candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -631,7 +631,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Fuel Level\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Fuel Level candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -682,7 +682,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Depth\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Depth candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -733,7 +733,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Battery Voltage\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Battery Voltage candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
@@ -784,7 +784,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Trim\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Trim candidate\")\n  |> last()",
           "refId": "A"
         }
       ],
