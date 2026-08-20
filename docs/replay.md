@@ -11,9 +11,16 @@ validation, without deciding in advance whether any given CAN field is
 byte/word values already scored by `tools/smartcraft_toolkit`'s Phase 2
 hypothesis engine and documented in
 [`docs/master-test01-analysis.md`](master-test01-analysis.md) -- nothing
-here invents a new CAN meaning, and no value is ever unit-converted (no
-fake °F, PSI, or RPM), because none of those candidates have a confirmed
-scale factor yet, only an identified byte location.
+here invents a new CAN meaning, and the raw value stored for every
+candidate is never unit-converted, because none of those candidates have
+a confirmed scale factor, only an identified byte location.
+
+A separate, explicitly-labeled **guess** layer sits on top of that raw
+value for the gauge panels (added at Gary's request, after a first pass
+showing only raw numbers turned out to be hard to eyeball for
+plausibility) -- see "Guessed calibration (gauges)" below. It's kept
+completely apart from the raw value and from anything
+`docs/master-test01-analysis.md` treats as evidence.
 
 ## Why a separate path from the simulator's data
 
@@ -55,15 +62,17 @@ services/replay/app/main.py                   paces playback by the frames' own 
         |
         v
 services/replay/app/publisher.py               writes to InfluxDB:
-                                                   can_replay      (tags: capture, hypothesis, tier;
-                                                                    fields: value, confidence_pct)
+                                                   can_replay      (tags: capture, hypothesis, tier, unit;
+                                                                    fields: value, confidence_pct,
+                                                                    guess_value if candidates.py defines one)
                                                    replay_status   (tags: capture;
                                                                     fields: state, position_s,
                                                                     duration_s, pct_complete, speed)
         |
         v
-grafana/dashboards/diagnostics.json            "⚠ REPLAY MODE" banner, "Replay Status" table,
-                                                "Candidate Signals (Replay)" table
+grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
+                                                "Candidate Signals (Replay)" table (raw values),
+                                                8 "(GUESS)" gauge panels (guess_value, per-candidate units)
 ```
 
 ## `candidates.py`: what gets shown, and how
@@ -97,6 +106,40 @@ evidence-scored candidates, cited the same way, rather than editing the
 `MASTER_TEST01_CANDIDATES` entries in place. Everything else in this
 pipeline -- `reader.py`, `pacing.py`, `main.py`, `publisher.py`, the
 Grafana panels -- is capture-agnostic and needs no changes.
+
+## Guessed calibration (gauges)
+
+A raw integer (`4714`, `44549`, ...) is hard to eyeball for plausibility.
+Each `ReplayCandidate` in `candidates.py` can carry an optional `Guess`
+(`scale`, `offset`, `unit`, and a `basis`):
+
+- **`FITTED`** -- scale/offset solved from >=1 real field-sheet reading
+  cited in `docs/master-test01-analysis.md` (e.g. RPM: raw~4270-4590 during
+  the field sheet's real 540-590 RPM idle window). Still not a confirmed
+  decode -- just an estimate anchored to one real data point (or two, for
+  candidates with an early and a later reading to fit a line through), on
+  a candidate this report itself may already flag as a poor fit at other
+  points (e.g. RPM's compressed dynamic range at higher speeds).
+- **`UNANCHORED`** -- a placeholder assumption with nothing behind it at
+  all (typically "this byte's/word's full numeric range = 0-100%" or a
+  plausible-looking min/max). Used for candidates where no real reading
+  exists to fit against (Fuel, Depth, Battery Voltage here).
+
+`publisher.py` computes `guess.apply(raw_value)` and writes it as a
+*separate* `guess_value` field (never overwriting `value`, the raw
+number), tagged with the guess's `unit`. Eight gauge panels in
+`diagnostics.json` (titled `"<Name> (GUESS)"`) read `guess_value`, styled
+like Engine Overview's real gauges but in a single neutral blue rather
+than green/amber/red -- that traffic-light palette implies validated
+alarm severity these guesses haven't earned, so it's deliberately not
+reused here.
+
+**A guess reading "wrong" is itself useful evidence, not a failure.** Fuel
+reading ~2% when the field sheet says the tank was ~100% the whole test
+isn't this replay tool malfunctioning -- it's the `UNANCHORED` guess
+(plus, more importantly, the underlying raw candidate byte) failing the
+same plausibility check a human glancing at the gauge would apply. That's
+exactly the "human validation" this whole mechanism exists for.
 
 ## Running it
 
@@ -173,7 +216,10 @@ Refresh the Diagnostics dashboard (it auto-refreshes every 5s). The
 **Replay Status** table shows which capture is playing, its state
 (`playing`/`paused`\*/`finished`/`stopped`), playback speed, and position;
 the **Candidate Signals (Replay)** table shows every candidate's current
-raw value, its tier (`hypothesis`/`raw`), and confidence.
+raw value, its tier (`hypothesis`/`raw`), and confidence; the 8 gauge
+panels below that show the same candidates' guessed-calibration estimates
+(see "Guessed calibration" above) -- hover a gauge's description for its
+specific basis.
 
 \* `paused` isn't currently published as its own `replay_status` state --
 while paused, the last `"playing"` status simply stops updating (position
@@ -190,14 +236,30 @@ yet.
   single CAN frame. This is deliberate (198,784 frames written
   individually would hammer InfluxDB for no benefit at this stage), but
   worth knowing if a specific fast transient doesn't visibly register.
+- Explicit `"paused"` status, noted above.
 - Docker usage (`docker compose run --rm replay`) is implemented but has
-  not been run end-to-end in this environment (Docker Desktop wasn't
-  running when this was built) -- the local `python -m app.main` path
-  has been verified against the real `master-test01.txt` capture
-  end-to-end except for the final InfluxDB write itself (also not
-  verified live, same reason). Worth a real smoke test before relying on
-  either path.
-- `explicit "paused" status`, above.
+  not actually been run end-to-end (only the local `python -m app.main`
+  path has, against a live InfluxDB/Grafana stack -- see "Verified live"
+  below) -- worth a smoke test before relying on it.
+- No IPC to control an already-running replay process from outside its
+  own terminal (the p/r/q controls only work if you have that terminal).
+  To restart or stop it from elsewhere, find and kill the Python process
+  and launch a new one. Don't run two instances against the same
+  `--capture-name` at once -- both will publish concurrently with nothing
+  to detect or prevent it.
+
+## Verified live
+
+Run end-to-end against a real `docker compose --profile dev` InfluxDB +
+Grafana stack: replay parsed and played the full `master-test01.txt`
+capture (198,784 frames) at 1x, 5x, and 10x speed; `can_replay` and
+`replay_status` points were confirmed landing correctly via direct
+InfluxDB queries; all 9 candidates' `guess_value`s matched the ranges
+expected from `docs/master-test01-analysis.md` (including the
+`Fuel`/`Depth`/`Battery Voltage` guesses visibly *not* matching their
+real field-sheet values, as documented above); the Diagnostics dashboard
+was confirmed provisioned with all 16 panels via Grafana's API. The p/r/q
+controls and a full stop/restart were exercised manually.
 
 ## Tests
 
@@ -207,8 +269,11 @@ python -m unittest discover -s services/replay/tests -t services/replay
 
 Covers `pacing.py` (speed math), `candidates.py` (table sanity -- unique
 labels, valid tiers, every candidate cited, "hypothesis" tier reserved
-for >=50% confidence), `reader.py` (frame matching/extraction, including
-against a real committed sample log), `config.py` (CLI parsing), and
-`main.py` (the Controls pause/restart/stop state machine and the full
-playback loop, driven end-to-end with a fake publisher and fake clock so
-no real InfluxDB or wall-clock waiting is needed).
+for >=50% confidence, every `Guess` has a valid basis/unit/note, `Guess`'s
+own scale/offset math), `reader.py` (frame matching/extraction, including
+against a real committed sample log), `config.py` (CLI parsing),
+`publisher.py` (the `can_replay` point built correctly with/without a
+guess attached, via a recording stand-in that never touches a real
+InfluxDB connection), and `main.py` (the Controls pause/restart/stop
+state machine and the full playback loop, driven end-to-end with a fake
+publisher and fake clock).

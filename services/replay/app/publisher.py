@@ -10,9 +10,14 @@ would silently misrepresent an unconfirmed raw CAN value as a calibrated
 reading. Two new measurements instead:
 
     can_replay      one point per candidate per publish tick
-                     tags: capture, hypothesis, tier
+                     tags: capture, hypothesis, tier, unit (guess unit, or
+                           "" if this candidate has no guess)
                      fields: value (raw CAN integer, no unit conversion),
-                             confidence_pct (-1 if unscored)
+                             confidence_pct (-1 if unscored),
+                             guess_value (candidates.py's Guess applied to
+                             value -- an explicit, separately-labeled
+                             illustrative estimate, never a decode; absent
+                             for candidates with no Guess, e.g. status flags)
     replay_status    one point per publish tick, drives the dashboard's
                      REPLAY MODE banner
                      tags: capture
@@ -48,14 +53,18 @@ class ReplayPublisher:
         points = []
         for label, value in values.items():
             candidate = by_label[label]
-            points.append(
+            point = (
                 Point("can_replay")
                 .tag("capture", capture)
                 .tag("hypothesis", label)
                 .tag("tier", candidate.tier)
+                .tag("unit", candidate.guess.unit if candidate.guess else "")
                 .field("value", value)
                 .field("confidence_pct", candidate.confidence_pct)
             )
+            if candidate.guess is not None:
+                point = point.field("guess_value", candidate.guess.apply(value))
+            points.append(point)
         self._write(points)
 
     def publish_status(self, capture: str, state: str, position_s: float, duration_s: float, speed_label: str) -> None:

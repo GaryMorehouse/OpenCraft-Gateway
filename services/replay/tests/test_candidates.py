@@ -2,7 +2,7 @@ import unittest
 
 from . import _pathfix  # noqa: F401
 
-from app.candidates import CANDIDATES, HYPOTHESIS, RAW
+from app.candidates import CANDIDATES, FITTED, HYPOTHESIS, RAW, UNANCHORED, Guess
 
 
 class TestCandidateTable(unittest.TestCase):
@@ -35,6 +35,30 @@ class TestCandidateTable(unittest.TestCase):
         for c in CANDIDATES:
             if c.tier == HYPOTHESIS:
                 self.assertGreaterEqual(c.confidence_pct, 50, c.label)
+
+    def test_every_guess_has_a_valid_basis_unit_and_note(self):
+        for c in CANDIDATES:
+            if c.guess is None:
+                continue
+            self.assertIn(c.guess.basis, (FITTED, UNANCHORED), c.label)
+            self.assertTrue(c.guess.unit, c.label)
+            self.assertTrue(c.guess.note, c.label)
+
+    def test_status_flag_candidate_has_no_guess(self):
+        # A structural status/counter byte isn't a physical quantity -- no
+        # unit guess should be attached to it.
+        status_flag = next(c for c in CANDIDATES if c.label == "Engine/mode status flag")
+        self.assertIsNone(status_flag.guess)
+
+
+class TestGuess(unittest.TestCase):
+    def test_apply_scales_and_offsets(self):
+        g = Guess(scale=0.5, offset=10, unit="X", basis=FITTED, note="test")
+        self.assertAlmostEqual(g.apply(100), 60.0)
+
+    def test_apply_zero_scale_returns_offset(self):
+        g = Guess(scale=0.0, offset=42, unit="X", basis=UNANCHORED, note="test")
+        self.assertAlmostEqual(g.apply(999), 42.0)
 
 
 if __name__ == "__main__":

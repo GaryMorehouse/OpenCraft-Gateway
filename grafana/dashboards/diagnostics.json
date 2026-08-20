@@ -1,21 +1,35 @@
 {
   "uid": "opencraft-diagnostics",
   "title": "Diagnostics",
-  "tags": ["opencraft", "engine"],
+  "tags": [
+    "opencraft",
+    "engine"
+  ],
   "timezone": "browser",
   "style": "dark",
   "editable": true,
   "schemaVersion": 39,
   "version": 1,
   "refresh": "5s",
-  "time": { "from": "now-15m", "to": "now" },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
   "panels": [
     {
       "id": 1,
       "type": "table",
       "title": "Active Alarms",
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
       "targets": [
         {
           "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"notifications\")\n  |> filter(fn: (r) => r._field == \"state\" or r._field == \"severity\" or r._field == \"message\")\n  |> last()\n  |> pivot(rowKey: [\"path\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"path\", \"state\", \"severity\", \"message\"])\n  |> sort(columns: [\"severity\"], desc: true)",
@@ -26,18 +40,47 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "state" },
+            "matcher": {
+              "id": "byName",
+              "options": "state"
+            },
             "properties": [
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background" }
+                "value": {
+                  "type": "color-background"
+                }
               },
               {
                 "id": "mappings",
                 "value": [
-                  { "type": "value", "options": { "normal": { "color": "green", "index": 0 } } },
-                  { "type": "value", "options": { "warn": { "color": "orange", "index": 1 } } },
-                  { "type": "value", "options": { "alarm": { "color": "red", "index": 2 } } }
+                  {
+                    "type": "value",
+                    "options": {
+                      "normal": {
+                        "color": "green",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "warn": {
+                        "color": "orange",
+                        "index": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "alarm": {
+                        "color": "red",
+                        "index": 2
+                      }
+                    }
+                  }
                 ]
               }
             ]
@@ -50,8 +93,16 @@
       "id": 2,
       "type": "stat",
       "title": "Data Source Status",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 9 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
       "targets": [
         {
           "query": "from(bucket: v.defaultBucket)\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"propulsion\" and r._field == \"revolutions\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: float(v: int(v: now()) - int(v: r._time)) / 1000000000.0 }))\n  |> keep(columns: [\"_time\", \"_value\"])",
@@ -59,7 +110,13 @@
         }
       ],
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
@@ -72,9 +129,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 10, "color": "orange" },
-              { "value": 30, "color": "red" }
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 10,
+                "color": "orange"
+              },
+              {
+                "value": 30,
+                "color": "red"
+              }
             ]
           }
         },
@@ -85,7 +151,12 @@
       "id": 3,
       "type": "text",
       "title": "ECU Status",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 9 },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 9
+      },
       "options": {
         "mode": "markdown",
         "content": "**Not yet available.**\n\nNo physical ECU/SmartCraft interface is connected. This panel will show live ECU health and fault codes once SmartCraft CAN decoding is implemented (future milestone)."
@@ -95,7 +166,12 @@
       "id": 4,
       "type": "text",
       "title": "Gateway Status",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 9 },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 9
+      },
       "options": {
         "mode": "markdown",
         "content": "**Not yet available.**\n\nNo physical OpenCraft gateway hardware is deployed. This panel will show gateway health (uptime, CAN bus status, publish errors) once the SmartCraft gateway is implemented (future milestone)."
@@ -105,7 +181,12 @@
       "id": 5,
       "type": "text",
       "title": "⚠ REPLAY MODE",
-      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
       "options": {
         "mode": "markdown",
         "content": "**The two panels below show replayed historical capture data, not the live vessel.** They only populate while `services/replay` is running against a captured log such as `master-test01.log` -- see `docs/replay.md`. Every value is a raw or hypothesis-tagged CAN field candidate (see `docs/master-test01-analysis.md`), never a confirmed, calibrated decode. Check the Replay Status panel's `capture`/`state` columns before trusting anything in the Candidate Signals table."
@@ -115,8 +196,16 @@
       "id": 6,
       "type": "table",
       "title": "Replay Status",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
       "targets": [
         {
           "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"replay_status\")\n  |> filter(fn: (r) => r._field == \"state\" or r._field == \"position_s\" or r._field == \"duration_s\" or r._field == \"pct_complete\" or r._field == \"speed\")\n  |> last()\n  |> pivot(rowKey: [\"capture\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"capture\", \"state\", \"speed\", \"position_s\", \"duration_s\", \"pct_complete\"])",
@@ -127,34 +216,95 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "state" },
+            "matcher": {
+              "id": "byName",
+              "options": "state"
+            },
             "properties": [
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background" }
+                "value": {
+                  "type": "color-background"
+                }
               },
               {
                 "id": "mappings",
                 "value": [
-                  { "type": "value", "options": { "playing": { "color": "green", "index": 0 } } },
-                  { "type": "value", "options": { "paused": { "color": "orange", "index": 1 } } },
-                  { "type": "value", "options": { "finished": { "color": "blue", "index": 2 } } },
-                  { "type": "value", "options": { "stopped": { "color": "red", "index": 3 } } }
+                  {
+                    "type": "value",
+                    "options": {
+                      "playing": {
+                        "color": "green",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "paused": {
+                        "color": "orange",
+                        "index": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "finished": {
+                        "color": "blue",
+                        "index": 2
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "stopped": {
+                        "color": "red",
+                        "index": 3
+                      }
+                    }
+                  }
                 ]
               }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "pct_complete" },
-            "properties": [{ "id": "unit", "value": "percent" }]
+            "matcher": {
+              "id": "byName",
+              "options": "pct_complete"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "position_s" },
-            "properties": [{ "id": "unit", "value": "s" }]
+            "matcher": {
+              "id": "byName",
+              "options": "position_s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "duration_s" },
-            "properties": [{ "id": "unit", "value": "s" }]
+            "matcher": {
+              "id": "byName",
+              "options": "duration_s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
           }
         ]
       },
@@ -164,8 +314,16 @@
       "id": 7,
       "type": "table",
       "title": "Candidate Signals (Replay)",
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 18 },
-      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 18
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
       "targets": [
         {
           "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\")\n  |> filter(fn: (r) => r._field == \"value\" or r._field == \"confidence_pct\")\n  |> last()\n  |> pivot(rowKey: [\"hypothesis\", \"tier\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"hypothesis\", \"tier\", \"value\", \"confidence_pct\"])\n  |> sort(columns: [\"tier\", \"hypothesis\"])",
@@ -176,33 +334,489 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "tier" },
+            "matcher": {
+              "id": "byName",
+              "options": "tier"
+            },
             "properties": [
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background" }
+                "value": {
+                  "type": "color-background"
+                }
               },
               {
                 "id": "mappings",
                 "value": [
-                  { "type": "value", "options": { "hypothesis": { "color": "blue", "index": 0 } } },
-                  { "type": "value", "options": { "raw": { "color": "gray", "index": 1 } } }
+                  {
+                    "type": "value",
+                    "options": {
+                      "hypothesis": {
+                        "color": "blue",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "raw": {
+                        "color": "gray",
+                        "index": 1
+                      }
+                    }
+                  }
                 ]
               }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "confidence_pct" },
+            "matcher": {
+              "id": "byName",
+              "options": "confidence_pct"
+            },
             "properties": [
               {
                 "id": "mappings",
-                "value": [{ "type": "value", "options": { "-1": { "text": "unscored" } } }]
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "-1": {
+                        "text": "unscored"
+                      }
+                    }
+                  }
+                ]
               }
             ]
           }
         ]
       },
       "options": {}
+    },
+    {
+      "id": 8,
+      "type": "text",
+      "title": "Replay Signal Estimates (GUESSED calibration)",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Every gauge below applies a labeled guess on top of the raw CAN value -- not a confirmed decode.** Scale/offset per candidate are in `services/replay/app/candidates.py` (`Guess`), each cited to a section of `docs/master-test01-analysis.md`. Hover a gauge's info icon for its specific basis -- some are fitted to a real field-sheet reading, some are pure unanchored placeholder assumptions (noted on each). A number here looking 'wrong' (e.g. Fuel reading ~2% when the real tank was ~100%) is itself useful evidence against that candidate/assumption, not a sign of a real state change."
+      }
+    },
+    {
+      "id": 9,
+      "type": "gauge",
+      "title": "RPM (GUESS)",
+      "description": "GUESS, not a decode. Fitted from raw~4270-4590 during the field sheet's real idle 540-590 RPM window (analysis section 5). Known to under-read at higher RPM -- this candidate's own range is far smaller than real RPM's.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 29
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"RPM\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rotrpm",
+          "min": 0,
+          "max": 2600,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "gauge",
+      "title": "Coolant Temperature (GUESS)",
+      "description": "GUESS, not a decode. Two-point fit: raw 5126 -> 95°F at key-on, raw 57642 -> 152°F at t=600s (section 6). Late-session instability in the report will show up as an erratic reading here too.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 29
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Coolant Temperature\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "fahrenheit",
+          "min": 60,
+          "max": 220,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "gauge",
+      "title": "Oil Pressure (GUESS)",
+      "description": "GUESS, not a decode. Fitted from raw~84 at t=120s vs. real 50.3 PSI (section 7). The report found this candidate declines ~55% during a window where real oil pressure stayed flat -- a drop here may reflect that, not a real pressure loss.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 29
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurepsi",
+          "min": 0,
+          "max": 90,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "type": "gauge",
+      "title": "Raw Water Pressure (GUESS)",
+      "description": "GUESS, not a decode. Fitted from raw 256 -> 0 PSI (key-on) and raw ~34000 -> 1 PSI (idle) (section 8). Under-reads once RPM rises -- this candidate's step-test response was much smaller than real water pressure's.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 29
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Raw Water Pressure\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurepsi",
+          "min": 0,
+          "max": 6,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "type": "gauge",
+      "title": "Fuel Level (GUESS)",
+      "description": "GUESS, not a decode -- UNANCHORED (byte range assumed = 0-100%, not fitted to any real reading). Real fuel was ~100% the whole test (section 9); if this reads far below that, it's evidence against this candidate, not a low tank.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 37
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Fuel Level\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "type": "gauge",
+      "title": "Depth (GUESS)",
+      "description": "GUESS, not a decode -- UNANCHORED (word range assumed = 0-100ft, not fitted to any real reading). Real depth was ~8.9-9.1ft (section 10); a large mismatch here is evidence against this candidate, not a real depth change.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 37
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Depth\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthft",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "type": "gauge",
+      "title": "Battery Voltage (GUESS)",
+      "description": "GUESS, not a decode -- UNANCHORED (word range assumed = 12-16V, not fitted). This field only takes 2 distinct raw values in the whole capture -- a real battery voltage should vary continuously, so this gauge flipping between two fixed numbers is evidence AGAINST this candidate being battery voltage.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 37
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Battery Voltage\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "min": 10,
+          "max": 16,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 16,
+      "type": "gauge",
+      "title": "Trim (GUESS)",
+      "description": "GUESS, not a decode. Inverted byte-range guess, anchored on the field sheet's trim starting fully DOWN (0%) at key-on, matching this candidate's near-constant raw ~239-244 at capture start (section 12). Direction is a guess; magnitude during the trim-cycle window is not confirmed.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 37
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Trim\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

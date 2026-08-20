@@ -79,8 +79,9 @@ made in the Grafana UI are NOT persisted; edit the JSON files and redeploy
   summary), Data Source Status (real: seconds since the last telemetry
   point was received), ECU Status and Gateway Status (honest placeholders
   — no physical hardware exists yet to report on), and a "REPLAY MODE"
-  section (Replay Status, Candidate Signals) that populates only while
-  `services/replay` is running — see [docs/replay.md](replay.md).
+  section (Replay Status, Candidate Signals, and 8 labeled-guess gauges)
+  that populates only while `services/replay` is running — see
+  [docs/replay.md](replay.md).
 
 ### Color system
 
