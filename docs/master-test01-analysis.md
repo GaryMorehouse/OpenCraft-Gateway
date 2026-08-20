@@ -498,6 +498,78 @@ warning.
 
 ## 7. Oil-pressure hypothesis
 
+**Update (2026-08-20): a much stronger candidate found.** Gary asked
+directly whether a better oil-pressure candidate exists, given the
+leading candidate below kept failing every check. That prompted a
+systematic search: build a real, densely-anchored "expected oil PSI over
+time" reference curve from the field sheet (flat ~49.7 PSI through the
+whole idle stretch, rising through the confirmed 900/1380/2570 RPM
+plateaus to 65.9 PSI, back to 46.7 PSI at post-ramp idle), then correlate
+every byte in the entire capture against it. The top result by raw
+correlation (`1A0` record `05` byte 2) turned out to be a false lead --
+it's the high byte of the already-confirmed Raw Water Pressure word
+(section 8), and its step-to-step increments *decelerate* (18, 14, 12)
+while real oil pressure's increments *accelerate* slightly (+3.6, +3.0,
++9.6) -- opposite shapes, so naive correlation was just picking up
+"everything rises with RPM in this one test," not a genuine oil match.
+The next distinct candidate held up under that same shape check:
+
+**CAN ID**: `170`
+**Bytes**: record `00`, byte 3 (a different byte in the same record as
+the original candidate below).
+**Observed behavior**: an inverse relationship -- raw value *falls* as
+real oil pressure rises, and does so cleanly:
+
+| Condition | Real oil (PSI) | Raw (byte 3) | Distinct values in window |
+|---|---|---|---|
+| Engine off (t=0-66) | 0.5 | ~39 (31-39) | 7 |
+| Idle running (t=100-660) | ~49.7 (flat) | ~21 (20-22) | 3 |
+| 900 RPM plateau | 53.3 | ~15 (13-19) | 7 |
+| 1380 RPM plateau | 56.3 | ~12 (12-13) | 2 |
+| 2570 RPM plateau | 65.9 | **11 (constant)** | **1** |
+| Post-ramp idle (t=960-1158) | 46.7 | ~21 (20-22) | 3 |
+
+Every plateau here is far cleaner (fewer distinct values, tighter range)
+than the original candidate ever manages at any point in the file, and
+the 2570 RPM plateau -- where real oil pressure peaks -- is perfectly flat
+at raw 11, the single cleanest reading found for *any* candidate in this
+section.
+**Cross-validated against a second, independent RPM test**: the capture's
+final segment (t~1158-1312s, the field sheet's 23:01-23:03 series:
+550/990/1400/2000/2500 RPM, no oil PSI logged for this run) shows the
+exact same behavior with no fitting involved -- raw falls smoothly as RPM
+climbs, bottoms out at the identical raw value (11) at this run's RPM
+peak (matching the first test's confirmed 2570 RPM plateau), then returns
+to the identical idle baseline (~20-21) once RPM drops back. A real
+sender should behave identically across two independent runs of the same
+engine; this one does.
+**Evidence FOR**: monotonic and inverse at every single anchor point,
+including the two hardest tests any candidate in this report has faced --
+staying essentially flat during idle despite small real RPM changes
+(540-590 RPM), and correctly bottoming out at the true real-world PSI
+peak (2570 RPM) with zero noise. Reproduces identically in a second,
+independent RPM test never used to build the fit.
+**Evidence AGAINST**: the relationship isn't a single straight line -- the
+engine-off point implies a PSI/raw-count ratio roughly 3-5x steeper than
+the running-regime points do, so this needed an `InterpolatedGuess`, not
+a plain `Guess`. That's not unusual for a real sender curve (many
+pressure-sender output curves are non-linear, especially near zero), but
+it isn't independently confirmed to be that vs. two different underlying
+regimes glued together. The specific PSI value implied for any raw
+reading between 900 and 1380 RPM (raw 12-15) is interpolated, not
+independently anchored.
+**Confidence: moderate-to-good** -- see `candidates.py`'s `Guess.note` for
+the exact numbers. Comparable in strength to the RPM and Water Pressure
+candidates' 2026-08-20 upgrades.
+**Best experiment to distinguish it further**: the same sender-disconnect
+test proposed for the original candidate below (section 17) would work
+here too and is still the sharpest single confirmation available --
+briefly disconnect the oil-pressure sender at steady idle and see which
+byte snaps to a fixed fault/out-of-range value at the exact disconnect
+moment.
+
+### Original leading candidate (superseded above, kept for the record)
+
 **CAN ID**: `170`
 **Bytes**: record `00`, byte 1 (and the wider bytes 0-1 LE pairing).
 **Observed behavior**: flat at exactly 0 through t=66.7s (key-ON, engine
@@ -571,7 +643,11 @@ to track RPM across two independently-confirmed step points make this
 look decreasingly like oil pressure the more it's tested. The Phase 2
 tool still scores it 80% (section 4) purely on RPM-rank correlation
 across the five old discrete logs; it structurally cannot see any of
-this, since none of it came from that engine.
+this, since none of it came from that engine. **Update (2026-08-20)**:
+superseded as the leading oil-pressure candidate by `170` record `00`
+byte 3 above -- a different byte in the same record that tracks real oil
+pressure cleanly and inversely, including through a second independent
+RPM test this candidate was never tested against this thoroughly.
 **Competing hypothesis**: a related-but-different quantity (e.g. oil
 pressure convolved with a slow warm-up-coupled term), or something that
 only coincidentally moves with RPM/engine-catch events without actually
@@ -1147,7 +1223,8 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Signal | Leading candidate | This report | Phase 2 tool (post-update) |
 |---|---|---|---|
 | Coolant Temperature | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good** -- real early-rise/plateau shape and timing match the field sheet; late-session instability unexplained | 55% |
-| Oil Pressure | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Weak** (downgraded again, 2026-08-20) -- contradicts the field sheet's flat-idle reading AND fails to rise at all at a confirmed 2570 RPM / 65.9 PSI peak; no consistent relationship to real oil pressure found anywhere. Replay tier moved hypothesis->raw | 80% (tool doesn't see any of this) |
+| Oil Pressure | `170` rec `00` byte 3 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- inversely tracks real oil PSI at every idle/900/1380/2570 anchor, cleaner (fewer distinct values) than any prior candidate, cross-validated against a second independent RPM test at the end of the file (identical raw minimum at RPM peak, identical baseline on return to idle) | not one of the tool's byte positions tested (60%, this report's own score) |
+| Oil Pressure (original candidate) | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Weak**, superseded above -- contradicts the field sheet's flat-idle reading AND fails to rise at all at a confirmed 2570 RPM / 65.9 PSI peak; no consistent relationship to real oil pressure found anywhere. Replay tier moved hypothesis->raw | 80% (tool doesn't see any of this) |
 | RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate-to-good** (2026-08-20) -- immediate rough-transient onset, idle-stability, jaggedness matching the overshoot/correct throttle technique, plus 3 real RPM anchors (900/1380/2570) now fit via a piecewise curve instead of one bad line | 65% (top candidate) |
 | Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Moderate-to-good** (upgraded, 2026-08-20) -- a 5-point piecewise fit (physically consistent with a centrifugal-pump pressure curve) was cross-validated against an independent second RPM test to within 1-11%; fuel-consumption-rate was proposed as an alternative and directly ruled out. Replay tier moved raw->hypothesis | 65% (RPM top-3) / 60% (RWP top-3, tool score unchanged -- doesn't see any of this either) |
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
@@ -1176,12 +1253,17 @@ ambiguity's sharper but still-unresolved shape) that a handful of
   is a real, different kind of evidence than response character/magnitude
   alone, and now favors treating this candidate as water pressure over
   RPM.
-- The oil-pressure candidate's steady-idle decline directly contradicts
-  the field sheet's flat real reading over the same window, and now also
-  fails to rise at all across the full confirmed RPM range up to a real
-  65.9 PSI peak (section 7, 2026-08-20 update) -- neither is explained;
-  this candidate is looking less and less like oil pressure the more it's
-  tested.
+- The original oil-pressure candidate's steady-idle decline directly
+  contradicts the field sheet's flat real reading over the same window,
+  and fails to rise at all across the full confirmed RPM range up to a
+  real 65.9 PSI peak (section 7) -- neither is explained; this candidate
+  is looking less and less like oil pressure the more it's tested. A much
+  stronger replacement candidate (`170` rec `00` byte 3) was found on
+  2026-08-20 and is now the leading oil-pressure candidate -- see section
+  7. It still isn't fully confirmed: the non-linear engine-off-to-idle
+  jump implies either a genuinely non-linear sender curve or two
+  different regimes glued together, and the sender-disconnect experiment
+  (section 17) hasn't been run against it yet.
 - The coolant candidate's late-session instability is unexplained, and
   now confirmed to start earlier than previously thought: even during the
   RPM-step window (t~925-953s), the same real 152°F reading corresponded

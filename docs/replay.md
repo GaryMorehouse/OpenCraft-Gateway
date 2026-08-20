@@ -72,7 +72,7 @@ services/replay/app/publisher.py               writes to InfluxDB:
         v
 grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
                                                 "Candidate Signals (Replay)" table (raw values),
-                                                10 "(GUESS)" gauge panels (guess_value, per-candidate units)
+                                                11 "(GUESS)" gauge panels (guess_value, per-candidate units)
 ```
 
 ## `candidates.py`: what gets shown, and how
@@ -173,7 +173,7 @@ and is called out as such in its `note`.
 *separate* `guess_value` field (never overwriting `value`, the raw
 number), tagged with the guess's `unit` -- `apply()` works the same way
 for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
-change. Ten gauge panels in `diagnostics.json` (titled `"<Name>
+change. Eleven gauge panels in `diagnostics.json` (titled `"<Name>
 (GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
 but in a single neutral blue rather than green/amber/red -- that
 traffic-light palette implies validated alarm severity these guesses
@@ -186,6 +186,24 @@ real-world reading like the others; it's structural (raw 23 = the first
 observed value = t~3s into the capture), so the gauge reads "minutes
 elapsed since this capture started," not any claimed absolute engine-hours
 value.
+
+**Oil Pressure (inverse byte3)** (added 2026-08-20, `170` record `00`
+byte 3) uses an `InterpolatedGuess` with 5 anchors, ordered by ascending
+raw value while the real PSI values *descend* -- this candidate's raw
+count falls as real oil pressure rises. Found via a systematic
+correlation search of every byte in the capture against a real,
+field-sheet-anchored oil-PSI-over-time reference curve, after Gary asked
+whether a better oil-pressure candidate exists than the one that had
+already been downgraded twice. The naive top correlation hit
+(`1A0` record `05` byte 2, the high byte of the already-confirmed Raw
+Water Pressure word) turned out to be a false lead once its step-to-step
+shape was checked against real oil's shape rather than just its
+direction -- a reminder that Pearson correlation alone can't distinguish
+"tracks oil" from "tracks anything that rises with RPM" in a single test
+where RPM, oil, and water all move together. `170` record `00` byte 3
+held up: cleaner at every anchor than the original candidate, and
+independently cross-validated against the file's second RPM test. See
+`docs/master-test01-analysis.md` section 7.
 
 **Trim Direction** (added 2026-08-20, `170` record `03` byte 2) uses an
 `InterpolatedGuess` with exact-integer anchors `(0,0), (1,1), (2,-1)` --

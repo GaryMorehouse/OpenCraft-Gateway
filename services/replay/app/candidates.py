@@ -169,7 +169,45 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             "below -- its own idle raw value (~37.8). It fails to rise at all "
             "across the full confirmed RPM range. This guess is likely "
             "showing a number with very little relationship to real oil "
-            "pressure; treat it as illustrative at best.",
+            "pressure; treat it as illustrative at best. Update 2026-08-20: "
+            "superseded as the leading oil-pressure candidate by 'Oil "
+            "Pressure candidate (inverse byte3)' below, found via a "
+            "systematic ground-truth correlation search after Gary asked "
+            "whether a better candidate exists.",
+        ),
+    ),
+    ReplayCandidate(
+        "Oil Pressure candidate (inverse byte3)", CandidateKey("170", "00", 3, 1, ""), HYPOTHESIS, 60,
+        "docs/master-test01-analysis.md section 7 -- new leading candidate, "
+        "2026-08-20, found via a systematic correlation search of every "
+        "byte in the capture against the field sheet's real oil-pressure "
+        "readings, prompted by Gary asking whether a better candidate "
+        "exists than the noisy, non-tracking byte above",
+        InterpolatedGuess(
+            points=((11, 65.9), (12, 56.3), (15, 53.3), (21, 49.7), (39, 0.5)),
+            unit="PSI", basis=FITTED,
+            note="Inversely and monotonically tracks real oil pressure at "
+            "every anchor: raw~39 at engine-off (0.5 PSI) -> raw~21 flat "
+            "through the whole idle window regardless of small RPM changes "
+            "(49.7 PSI, matching the field sheet's own near-constant "
+            "540-590 RPM idle readings) -> raw~15/12/11 at the confirmed "
+            "900/1380/2570 RPM plateaus (53.3/56.3/65.9 PSI) -- and each "
+            "plateau is far cleaner than the old candidate (1, 2, 7, and 1 "
+            "distinct raw values respectively, vs. that candidate's chaotic "
+            "swings). Cross-validated against a second, fully independent "
+            "RPM test at the end of the same capture (t~1158-1312s, "
+            "550-2500 RPM, no field-sheet oil readings for this run but the "
+            "shape is checked): raw falls smoothly as RPM rises, bottoms out "
+            "at the SAME raw value (11) at the run's RPM peak as the first "
+            "test's confirmed 2570 RPM plateau, and returns to the SAME "
+            "raw idle baseline (~20-21) once RPM drops back down -- exactly "
+            "the repeatable behavior a real inverse-encoded oil-pressure "
+            "sender should show. The relationship isn't a single straight "
+            "line (the engine-off point implies a much steeper PSI/raw-count "
+            "ratio than the running-regime points do), hence the "
+            "InterpolatedGuess rather than a plain Guess -- not unusual for "
+            "a real sender curve, but a reason this isn't scored higher "
+            "than moderate confidence.",
         ),
     ),
     ReplayCandidate(

@@ -80,6 +80,22 @@ class TestCandidateTable(unittest.TestCase):
         water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
         self.assertEqual(water.tier, HYPOTHESIS)
 
+    def test_oil_pressure_inverse_candidate_uses_interpolated_guess_at_moderate_confidence(self):
+        # New leading oil-pressure candidate, 2026-08-20: an inversely
+        # correlated byte, cross-validated against a second independent
+        # RPM test (see the Guess note). Named "Oil Pressure ..." so it's
+        # held to the >=50% rule like the other 6 named hypotheses, not
+        # treated as an unscored structural finding.
+        oil2 = next(c for c in CANDIDATES if c.label == "Oil Pressure candidate (inverse byte3)")
+        self.assertEqual(oil2.tier, HYPOTHESIS)
+        self.assertGreaterEqual(oil2.confidence_pct, 50)
+        self.assertIsInstance(oil2.guess, InterpolatedGuess)
+        # anchors are inversely ordered: lowest raw -> highest real PSI
+        raws = [p[0] for p in oil2.guess.points]
+        self.assertEqual(raws, sorted(raws))
+        self.assertAlmostEqual(oil2.guess.apply(11), 65.9)
+        self.assertAlmostEqual(oil2.guess.apply(39), 0.5)
+
     def test_trim_direction_candidate_is_unscored_hypothesis_with_signed_interpolated_guess(self):
         # New structural finding, 2026-08-20: exactly 6 pulses alternating
         # between two raw values, occurring nowhere else in the whole file,
