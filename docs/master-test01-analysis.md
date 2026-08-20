@@ -745,7 +745,15 @@ distinct points across the session -- roughly t=55-57s, 317-323s,
 423-425s, 524-529s, 697-699s, 826-828s, and 1066-1073s/1131-1136s. Bytes
 0 and 6 of the same record show a subset of these same clusters (fewer,
 binary/3-valued transitions at t=55-57s, 423-425s, 826-828s,
-1066-1073s/1131-1136s).
+1066-1073s/1131-1136s). **Refined via live replay (2026-08-20, Gary
+watching `services/replay`'s dashboard)**: three of these clusters
+(t=423.9-424.6s, t=826.0-826.8s, t=1070.3-1071.1s) turn out to be a very
+specific, identical shape -- the raw byte drops to *exactly* 0 for 4
+consecutive samples (~0.7s), from its otherwise rock-steady ~239-244
+baseline, then snaps straight back. Not a gradual change or noise -- a
+clean, brief, repeatable dropout. The three occurrences aren't evenly
+spaced (402s and 244s apart), so not an obvious fixed-interval heartbeat
+either.
 **Physical observation**: the field sheet, confirmed directly by Gary,
 shows trim starting fully down (position 0) at key-on (22:41), then --
 during 22:59-23:00 -- cycled through **three full up/down cycles (6
@@ -777,7 +785,11 @@ continuous ~1-minute window -- that gap doesn't obviously match "six
 movements done in quick succession," so even the two "matching" clusters
 don't cleanly resolve into a single coherent trim-test signature the way
 the RPM candidates cleanly resolved into a single sharp engine-start
-transition (section 5).
+transition (section 5). The refined t=423.9-424.6s/826.0-826.8s bursts
+confirmed live are both well outside the documented trim window and share
+an identical, clean "drop to exactly 0 for ~0.7s" shape -- more consistent
+with a brief status/fault flag or a periodic self-check pulse than with a
+human pressing a trim button at an arbitrary, unlogged moment.
 **Confidence: very weak / exploratory.** A real lead worth checking, not
 evidence. Not scored by the formal Phase 2 engine (trim remains "not yet
 testable" there -- section 4).
