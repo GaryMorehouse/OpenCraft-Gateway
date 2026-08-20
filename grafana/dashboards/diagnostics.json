@@ -1024,6 +1024,58 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 21,
+      "type": "gauge",
+      "title": "Trim Estimated Position (DERIVED)",
+      "description": "NOT read from any CAN byte -- computed by dead-reckoning: integrates the Trim Up/Down Indicator's raw value (0=idle,1=up,2=down) over elapsed time, on the assumption each ~8s pulse is a full end-to-end stroke (8.275s = mean of the 6 measured pulse durations in this capture). Gary's own proposed technique, 2026-08-20. Starts at 0% (full down) at key-on. Never independently validated against a real intermediate trim-position reading -- this capture's field sheet only documents the full-down/full-up endpoints. A search for an independent min/max limit-switch signal to calibrate this against found no clean candidate. Purely illustrative -- see docs/master-test01-analysis.md section 12 and services/replay/app/derived.py.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 53
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Trim Estimated Position (derived)\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

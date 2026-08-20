@@ -122,6 +122,28 @@ class TestCandidateTable(unittest.TestCase):
         self.assertAlmostEqual(trim_dir.guess.apply(1), 1.0)
         self.assertAlmostEqual(trim_dir.guess.apply(2), -1.0)
 
+    def test_trim_position_estimate_candidate_is_unscored_with_passthrough_guess(self):
+        # Derived (not raw-CAN-read) candidate, 2026-08-20: dead-reckons
+        # trim position by integrating the Trim Direction candidate over
+        # time (see app/derived.py). scale=1/offset=0 because 'value' for
+        # this candidate is already the estimated percentage.
+        est = next(c for c in CANDIDATES if c.label == "Trim Estimated Position (derived)")
+        self.assertEqual(est.tier, HYPOTHESIS)
+        self.assertEqual(est.confidence_pct, -1)
+        self.assertIsInstance(est.guess, Guess)
+        self.assertEqual(est.guess.scale, 1.0)
+        self.assertEqual(est.guess.offset, 0.0)
+        self.assertAlmostEqual(est.guess.apply(37), 37.0)
+
+    def test_trim_position_estimate_key_never_matches_a_real_frame(self):
+        # Its CandidateKey is a placeholder (this candidate's value is
+        # computed in main.py, not read from the log) -- confirm the
+        # placeholder ID doesn't collide with any real CAN ID this project
+        # knows about.
+        est = next(c for c in CANDIDATES if c.label == "Trim Estimated Position (derived)")
+        real_ids = {c.key.can_id for c in CANDIDATES if c.label != est.label}
+        self.assertNotIn(est.key.can_id, real_ids)
+
     def test_engine_hours_candidate_is_unscored_hypothesis_with_plain_guess(self):
         # New structural finding, 2026-08-20: a wall-clock-driven counter
         # (~59.58s/tick, stdev 0.006s across 21 ticks) categorically unlike

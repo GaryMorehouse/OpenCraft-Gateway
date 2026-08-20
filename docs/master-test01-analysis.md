@@ -1102,6 +1102,48 @@ this method -- an isolated single-movement test (the same experiment
 proposed above) would show a real position sender much more clearly,
 embedded in far less competing signal traffic than this capture has.
 
+**Searched and not found (2026-08-20): an independent min/max limit
+switch.** Gary asked whether trim likely has a min/max end-of-travel
+indicator -- a reasonable question, since many real trim systems report
+limit-switch state rather than (or alongside) continuous position, and a
+clean limit signal would also let the duration-based position estimate
+below be calibrated/validated against real endpoint timing instead of
+just the pulse-duration assumption. Searched systematically: looked for
+any byte that reads one consistent value while trim is known to be
+resting at full-down (the whole pre-test idle period, plus the dwell
+after each Down-ending pulse) and a *different* consistent value while
+resting at full-up (the dwell after each Up-ending pulse). No clean
+candidate was found -- the one byte that showed any separation (`170`
+record `03` byte 0) is almost certainly just contamination from the
+original coolant candidate's own low byte (the same word, changing for
+unrelated reasons during that period), not a real trim signal. **No
+min/max limit-switch candidate was found in this capture.**
+
+**Derived estimate (2026-08-20): dead-reckoned position from pulse
+duration.** Gary's own proposed technique, following naturally from the
+~8s full-stroke observation above: if a full stroke takes ~8.3s, then N
+seconds of a commanded Up/Down pulse should move trim roughly N/8.3 of
+the way across its range (e.g. "2 up clicks at 1s each" =~ 24%). This
+isn't a new CAN candidate -- there's no byte to read -- so it's
+implemented as a genuinely *computed* signal: `services/replay/app/
+derived.py`'s `TrimPositionEstimator` integrates the Trim Direction
+candidate's raw value over elapsed capture time, frame by frame, moving
+100%/8.275s while a direction is commanded (8.275s = the mean of the 6
+measured pulse durations, 8.04-8.64s) and clamping at 0/100. It starts at
+0% (full down), matching the field sheet's key-on trim position, and is
+published on the dashboard as "Trim Estimated Position (DERIVED)".
+**This is explicitly an illustrative estimate, not a decode or even a
+CAN-derived hypothesis** -- it inherits every caveat of the pulse-based
+full-stroke assumption above, and has never been checked against a real
+intermediate trim-position reading (this capture's field sheet only
+documents the full-down/full-up endpoints). The min/max limit-switch
+search above was specifically an attempt to find independent evidence to
+validate this assumption against, and came up empty -- so this estimate
+remains uncalibrated beyond the pulse-duration reasoning itself. Treated
+as `hypothesis` tier but unscored (-1) in replay, the same convention
+used for every new structural/derived finding that isn't one of the
+formal tool's 6 named hypotheses.
+
 ### Original leading candidate (superseded above, kept for the record)
 
 **CAN ID**: `1A0`
@@ -1379,6 +1421,11 @@ ambiguity's sharper but still-unresolved shape) that a handful of
   2026-08-20) -- the trim direction candidate holds flat during each
   pulse rather than ramping, and the one superficially promising
   alternative found turned out to be an unrelated multiplexed rotation.
+  No independent min/max limit-switch signal was found either (section
+  12, 2026-08-20), so the derived, dead-reckoned position estimate built
+  from pulse duration (also section 12) has no independent evidence to
+  validate its full-stroke-duration assumption against -- it rests only
+  on the pulse-duration reasoning itself.
 - The trim direction candidate (`170` rec `03` byte 2, 2026-08-20) is
   strong on timing/count/order but still doesn't confirm which raw value
   (1 or 2) is physically Up vs Down -- that assignment is inferred from

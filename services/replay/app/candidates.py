@@ -47,6 +47,13 @@ RAW = "raw"
 FITTED = "fitted"  # scale/offset solved from >=1 real field-sheet data point
 UNANCHORED = "unanchored"  # scale/offset assumed (e.g. "byte range = 0-100%"), not fitted to any known reading
 
+# Labels main.py needs by name to wire up derived.py's TrimPositionEstimator
+# (see the "Trim Estimated Position (derived)" candidate below) -- kept as
+# constants so the two files can't silently drift out of sync with each
+# other's string literals.
+TRIM_DIRECTION_LABEL = "Trim Direction candidate"
+TRIM_POSITION_ESTIMATE_LABEL = "Trim Estimated Position (derived)"
+
 
 @dataclass(frozen=True)
 class Guess:
@@ -354,7 +361,7 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         ),
     ),
     ReplayCandidate(
-        "Trim Direction candidate", CandidateKey("170", "03", 2, 1, ""), HYPOTHESIS, -1,
+        TRIM_DIRECTION_LABEL, CandidateKey("170", "03", 2, 1, ""), HYPOTHESIS, -1,
         "docs/master-test01-analysis.md section 12 -- new structural finding, "
         "2026-08-20, found after Gary corrected the trim timing to 'moved "
         "only starting ~22:59, then 3 full up/down cycles in a row'; not one "
@@ -387,6 +394,39 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             "stroke). Treated as the leading interpretation, though the "
             "switch-position-vs-motor-movement distinction hasn't been "
             "independently tested.",
+        ),
+    ),
+    ReplayCandidate(
+        TRIM_POSITION_ESTIMATE_LABEL, CandidateKey("DEADBEEF", "", 0, 1, ""), HYPOTHESIS, -1,
+        "docs/master-test01-analysis.md section 12 -- derived estimate, "
+        "2026-08-20, Gary's own proposed technique: dead-reckon trim "
+        "position by integrating the Trim Direction candidate's raw value "
+        "over elapsed time, on the assumption each ~8s pulse is a full "
+        "end-to-end stroke",
+        Guess(
+            scale=1.0, offset=0.0, unit="%", basis=FITTED,
+            note="Not read from any CAN byte -- computed frame-by-frame in "
+            "main.py by derived.py's TrimPositionEstimator, which "
+            "integrates the Trim Direction candidate's raw value "
+            "(0=idle, 1=up, 2=down) over elapsed capture time, moving "
+            "100%/8.275s while a direction is commanded (8.275s = the "
+            "mean of the 6 measured pulse durations in this capture, "
+            "8.04-8.64s -- tightly clustered, consistent with each pulse "
+            "reaching a genuine physical end-of-travel rather than an "
+            "arbitrary partial tap). Starts at 0% (full down), matching "
+            "the field sheet's key-on trim position. This candidate's "
+            "'value' field IS already the estimated percentage (0-100), "
+            "not a raw CAN count -- scale=1/offset=0 here is a no-op, "
+            "kept only so this flows through the same guess_value "
+            "publish/dashboard convention as every other candidate. "
+            "Never independently validated against a real intermediate "
+            "trim-position reading -- this capture's field sheet only "
+            "documents the full-down/full-up endpoints (section 4), not "
+            "anything in between. A systematic search (2026-08-20) for an "
+            "independent min/max limit-switch signal that could calibrate "
+            "or validate the full-stroke-duration assumption found no "
+            "clean candidate. Treat this as an illustrative estimate, not "
+            "a confirmed decode.",
         ),
     ),
     ReplayCandidate(

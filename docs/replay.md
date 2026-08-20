@@ -58,7 +58,10 @@ services/replay/app/reader.py                 matches frames against candidates.
         |
         v
 services/replay/app/main.py                   paces playback by the frames' own timestamps
-                                                (scaled by --speed), handles pause/restart/stop
+                                                (scaled by --speed), handles pause/restart/stop;
+                                                also runs derived.py's TrimPositionEstimator,
+                                                feeding it the Trim Direction candidate's raw
+                                                value + elapsed time each frame (see below)
         |
         v
 services/replay/app/publisher.py               writes to InfluxDB:
@@ -72,8 +75,39 @@ services/replay/app/publisher.py               writes to InfluxDB:
         v
 grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
                                                 "Candidate Signals (Replay)" table (raw values),
-                                                12 "(GUESS)" gauge panels (guess_value, per-candidate units)
+                                                13 "(GUESS)"/"(DERIVED)" gauge panels (guess_value,
+                                                per-candidate units)
 ```
+
+## Derived signals: `derived.py`
+
+Every candidate above is read from a specific CAN byte via `reader.py`'s
+`extract()`. One candidate isn't: **"Trim Estimated Position (derived)"**
+(added 2026-08-20) has no byte position at all -- `candidates.py` gives it
+a placeholder `CandidateKey("DEADBEEF", ...)` that can never match a real
+frame (there's a test confirming that ID doesn't collide with any real
+CAN ID this project knows about), so `reader.py` never produces a value
+for it. Instead, `main.py`'s `_play_once` loop calls `derived.py`'s
+`TrimPositionEstimator` directly on every yielded frame, using the same
+`dt` (elapsed simulated time since the previous frame) it already
+computes for playback pacing, and injects the result straight into the
+same `values` dict `publisher.publish_candidates()` reads from --
+everything downstream (InfluxDB write, Grafana query) treats it exactly
+like any other candidate.
+
+The estimator implements Gary's own proposed technique (2026-08-20): if
+the Trim Direction candidate's ~8s pulses each represent a full
+end-to-end stroke (section 12's evidence for that: the field sheet
+documents each of the 6 movements as a full up/down stroke, and the
+pulse durations are tightly clustered), then N seconds of a commanded
+Up/Down pulse should move trim roughly N/8.3 of the way across its
+range. It integrates using the direction that was *already* in effect
+for the elapsed `dt` (captured before that frame's own update is
+applied), not whatever the current frame changes it to -- otherwise a
+frame landing exactly on a direction transition would misattribute the
+elapsed time to the wrong direction. `test_main.py`'s
+`test_trim_position_estimate_integrates_direction_over_elapsed_time`
+covers this ordering directly with a synthetic 2-frame log.
 
 ## `candidates.py`: what gets shown, and how
 
@@ -173,7 +207,7 @@ and is called out as such in its `note`.
 *separate* `guess_value` field (never overwriting `value`, the raw
 number), tagged with the guess's `unit` -- `apply()` works the same way
 for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
-change. Twelve gauge panels in `diagnostics.json` (titled `"<Name>
+change. Thirteen gauge panels in `diagnostics.json` (titled `"<Name>
 (GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
 but in a single neutral blue rather than green/amber/red -- that
 traffic-light palette implies validated alarm severity these guesses

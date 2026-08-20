@@ -2,7 +2,13 @@ import unittest
 
 from . import _pathfix  # noqa: F401
 
-from app.candidates import ReplayCandidate, HYPOTHESIS
+from app.candidates import (
+    CANDIDATES,
+    HYPOTHESIS,
+    ReplayCandidate,
+    TRIM_DIRECTION_LABEL,
+    TRIM_POSITION_ESTIMATE_LABEL,
+)
 from app.config import Config
 from app.main import Controls, run
 from smartcraft_toolkit.parser import Frame
@@ -120,6 +126,46 @@ class TestRun(unittest.TestCase):
             # should be the final one, 0x01
             last_candidate_values = publisher.candidate_calls[-1][1]
             self.assertEqual(last_candidate_values["Test candidate"], 0x01)
+
+    def test_trim_position_estimate_integrates_direction_over_elapsed_time(self):
+        import tempfile
+        from pathlib import Path
+
+        # 170 record 03: record byte 03, then 7 payload bytes; byte offset 2
+        # of the payload is the Trim Direction candidate. First frame sets
+        # it to 1 (Up) at t=1000.0; second frame sets it back to 0 (idle)
+        # at t=1002.0 -- i.e. "Up" was in effect for the 2.0s gap between
+        # them, matching Gary's own "N seconds of a click" framing.
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "sample.log"
+            write_log(
+                log_path,
+                [
+                    "(1000.000000) can0 170#0300000100000000",
+                    "(1002.000000) can0 170#0300000000000000",
+                ],
+            )
+            config = make_config(log_path)
+            controls = Controls(read_stdin=False)
+            publisher = FakePublisher()
+            calls = {"n": 0}
+
+            def fake_sleep(seconds):
+                calls["n"] += 1
+                controls.stop = True
+
+            direction_candidate = next(c for c in CANDIDATES if c.label == TRIM_DIRECTION_LABEL)
+            estimate_candidate = next(c for c in CANDIDATES if c.label == TRIM_POSITION_ESTIMATE_LABEL)
+
+            run(
+                config, controls=controls, sleep=fake_sleep, publisher=publisher,
+                candidates=[direction_candidate, estimate_candidate],
+            )
+
+            last_values = publisher.candidate_calls[-1][1]
+            # 2.0s of "Up" against an 8.275s full stroke =~ 24.17%, rounded
+            self.assertEqual(last_values[TRIM_POSITION_ESTIMATE_LABEL], 24)
+            self.assertEqual(last_values[TRIM_DIRECTION_LABEL], 0)
 
     def test_stop_before_any_frame_still_publishes_stopped_status(self):
         import tempfile

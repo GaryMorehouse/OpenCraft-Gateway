@@ -14,8 +14,9 @@ import sys
 import threading
 import time
 
-from .candidates import CANDIDATES
+from .candidates import CANDIDATES, TRIM_DIRECTION_LABEL, TRIM_POSITION_ESTIMATE_LABEL
 from .config import Config
+from .derived import TrimPositionEstimator
 from .pacing import playback_delay
 from .publisher import ReplayPublisher, wait_for_influxdb
 from .reader import iter_snapshots, load_frames
@@ -95,6 +96,10 @@ def _play_once(frames, duration_s, config, publisher, candidates, by_label, cont
     prev_ts = t0
     last_publish = 0.0
     values: dict[str, int] = {}
+    # Only wired up if the derived candidate is actually part of this run's
+    # candidate table (e.g. not for tests injecting an unrelated candidate
+    # list) -- see derived.py for what this integrates and why.
+    trim_estimator = TrimPositionEstimator() if TRIM_POSITION_ESTIMATE_LABEL in by_label else None
 
     publisher.publish_status(config.capture_name, "playing", 0.0, duration_s, config.speed_label)
 
@@ -111,6 +116,14 @@ def _play_once(frames, duration_s, config, publisher, candidates, by_label, cont
         if delay > 0:
             sleep(delay)
         prev_ts = frame.timestamp
+        if trim_estimator is not None:
+            # Integrate using the direction that was already in effect for
+            # the dt just elapsed (i.e. BEFORE this frame's own update is
+            # applied) -- attributes "dt seconds of direction X" to the X
+            # that was actually active during that gap, not whatever this
+            # frame changes it to.
+            direction_raw = values.get(TRIM_DIRECTION_LABEL, 0)
+            values[TRIM_POSITION_ESTIMATE_LABEL] = round(trim_estimator.update(direction_raw, dt))
         values.update(updates)
 
         now = time.monotonic()
