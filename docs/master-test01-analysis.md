@@ -700,9 +700,24 @@ the oil-pressure or coolant candidates; and because shore power was
 active, this test cannot cleanly exercise the real alternator-driven
 voltage step the hypothesis is meant to detect -- a flat-ish 13.4->14.0V
 rise here is at least as consistent with a shore-power charger's own
-regulation curve as with engine-driven charging.
-**Confidence: weak.** Directionally plausible but built on a small sample
-and confounded by shore power being active for this whole test.
+regulation curve as with engine-driven charging. **New, live-validated
+finding (2026-08-20)**: replaying this capture through the dashboard
+(`services/replay`), Gary watched the record-`83` steady-state field
+(the one actually shown continuously, section 3's alternating `83 07 17`
+/ `83 04 FF` pattern) square-wave cleanly between two fixed values
+(guessed ~10.2V / ~13.8V under a linear fit) on a strict ~15-18s cadence
+for the full session -- with shore power connected throughout, per the
+field sheet. A shore-powered battery should read stable, not toggle on a
+fixed clock like that. This is fairly strong evidence that record `83`'s
+field is not a continuously-sampled battery voltage at all, more likely
+two different pieces of status/diagnostic data alternating in the same
+byte slot as part of the periodic broadcast (see the request/response
+framing already suspected for `00000B41`/`0000410B` in section 3).
+**Confidence: weak**, and now more firmly so. Directionally plausible at
+the level of "which record", but the specific continuously-displayed
+field (record `83`) has direct, dated evidence against it behaving like
+voltage at all, on top of the original small-sample caveat for record
+`81` and the shore-power confound.
 **Competing hypothesis**: none specific -- the main risk here is simply
 that "shore power on" makes this test unable to distinguish a real
 battery-voltage signal from charger-regulation noise, whatever byte
@@ -922,7 +937,7 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Weak** (downgraded further) -- engine-catch onset timing/shape still favors this over RPM, but step-test gain is far short of real water pressure's +486%, and this candidate stays smooth during the RPM-step window where a real RPM-driven pressure should plausibly have been bumpy too | 65% (RPM top-3) / 60% (RWP top-3) |
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
 | Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
-| Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, and shore power confounds the expected alternator step | 55% |
+| Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |
 | Trim | `1A0` rec `0B` bytes 0, 3, 6 (tentative, new) | **Very weak / exploratory** -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |
 | Engine/mode status flag | `1A0` rec `00` bytes 1-2 (not one of the named hypotheses) | Steps at the same 5 timestamps as the RPM/pressure segment boundaries -- a corroborating structural signal, not a physical-value candidate | n/a |
 

@@ -207,7 +207,15 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             "state (5895) maps to ~10.2V under this same fit, which a real "
             "battery voltage should not do while running -- still evidence this "
             "candidate probably isn't a clean, continuous voltage signal, even "
-            "though one of its two states now reads correctly.",
+            "though one of its two states now reads correctly. CONFIRMED LIVE "
+            "(2026-08-20): Gary watched this gauge square-wave cleanly between "
+            "10.2V and 13.8V on a strict ~15-18s cadence throughout, with shore "
+            "power connected the entire test (field sheet) -- a shore-powered "
+            "battery should read stable, not toggle like this. Strengthens the "
+            "case that this raw field is not battery voltage, most likely two "
+            "different pieces of status/diagnostic data alternating in the same "
+            "byte slot (matches the record-83 alternation already documented in "
+            "section 3 of the analysis).",
         ),
     ),
     ReplayCandidate(
