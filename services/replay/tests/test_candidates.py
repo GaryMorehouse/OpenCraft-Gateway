@@ -51,11 +51,22 @@ class TestCandidateTable(unittest.TestCase):
         self.assertIsNone(status_flag.guess)
 
     def test_rpm_candidate_uses_interpolated_guess(self):
-        # RPM is the one candidate with enough real anchor points to show
+        # RPM is one of the candidates with enough real anchor points to show
         # its response isn't a single straight line -- confirm it's using
         # the piecewise mechanism, not a plain Guess.
         rpm = next(c for c in CANDIDATES if c.label == "RPM candidate")
         self.assertIsInstance(rpm.guess, InterpolatedGuess)
+
+    def test_water_candidate_uses_interpolated_guess(self):
+        water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
+        self.assertIsInstance(water.guess, InterpolatedGuess)
+
+    def test_water_candidate_is_hypothesis_tier_after_cross_validation(self):
+        # Upgraded from raw back to hypothesis on 2026-08-19 after its fit
+        # (built from one RPM step test) predicted a second, independent
+        # test's readings well -- see the Guess note for the numbers.
+        water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
+        self.assertEqual(water.tier, HYPOTHESIS)
 
 
 class TestGuess(unittest.TestCase):

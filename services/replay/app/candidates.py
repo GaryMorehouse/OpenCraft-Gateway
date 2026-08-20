@@ -114,19 +114,21 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         "RPM candidate", CandidateKey("170", "01", 4, 2, "BE"), HYPOTHESIS, 65,
         "docs/master-test01-analysis.md section 5",
         InterpolatedGuess(
-            points=((0, 0), (4487, 565), (5960, 900), (6730, 1380)),
+            points=((0, 0), (4487, 565), (5960, 900), (6730, 1380), (7108, 2570)),
             unit="RPM", basis=FITTED,
-            note="Piecewise fit across 4 real anchor points: raw 0 -> 0 RPM "
+            note="Piecewise fit across 5 real anchor points: raw 0 -> 0 RPM "
             "(engine off), raw~4487 -> ~565 RPM (field sheet idle window, "
-            "section 5), raw~5960 -> 900 RPM and raw~6730 -> 1380 RPM (Gary's "
-            "live observation during the first RPM-step test, 2026-08-19). "
-            "The slope roughly triples across these segments (0.13 -> 0.23 -> "
-            "0.62 RPM/count) -- a single straight line fit none of them well, "
-            "which is why this candidate now uses interpolation instead of a "
-            "plain scale/offset. Values above raw~6730 (past the last "
-            "confirmed step) are extrapolated using that segment's slope and "
-            "are the least trustworthy part of this guess -- the field sheet's "
-            "later steps (1910, 2570) haven't been anchored yet.",
+            "section 5), raw~5960 -> 900 RPM, raw~6730 -> 1380 RPM, and "
+            "raw~7108 -> 2570 RPM (Gary's live observations during the first "
+            "RPM-step test, 2026-08-19 -- 2570 was the settled mean of a "
+            "plateau he confirmed 'fluctuated up and down before settling', so "
+            "that last anchor is noisier than the others). The slope keeps "
+            "accelerating across segments (0.13 -> 0.23 -> 0.62 -> 3.15 "
+            "RPM/count) -- a single straight line fit none of them, which is "
+            "why this uses interpolation instead of scale/offset. Values above "
+            "raw~7108 are extrapolated using that last (steep, noisy) "
+            "segment's slope and are the least trustworthy part of this "
+            "guess.",
         ),
     ),
     ReplayCandidate(
@@ -137,33 +139,72 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             note="Two-point fit: raw 5126 -> 95°F at key-on, raw 57642 -> "
             "152°F at t=600s (section 6, field sheet). The report notes "
             "unexplained instability late in the session that this linear "
-            "guess will not reproduce correctly.",
+            "guess will not reproduce correctly -- confirmed to start earlier "
+            "than 'late session' too: at the settled 2570 RPM plateau "
+            "(t~925-953s, 2026-08-19), real coolant was still 152°F (same as "
+            "the t=600s anchor) but raw had drifted to ~43818, ~24% off the "
+            "~57642 seen at the *same* real 152°F reading -- real, uncaptured "
+            "noise/drift in this candidate between the two fitted anchors, not "
+            "something a better-shaped curve would fix.",
         ),
     ),
     ReplayCandidate(
-        "Oil Pressure candidate", CandidateKey("170", "00", 1, 1, ""), HYPOTHESIS, 80,
+        "Oil Pressure candidate", CandidateKey("170", "00", 1, 1, ""), RAW, 80,
         "docs/master-test01-analysis.md section 7 (Phase 2 tool score 80%; the "
-        "report itself downgrades this to 'moderate' -- see the section for why)",
+        "report downgrades this to 'moderate', and live validation below pushes "
+        "it further -- tier changed from hypothesis to raw on 2026-08-19 "
+        "despite the tool's unchanged 80% score, which structurally can't see "
+        "any of this)",
         Guess(
             scale=0.599, offset=0, unit="PSI", basis=FITTED,
-            note="Fitted from raw~84 at t=120s vs. the field sheet's real 50.3 "
-            "PSI at the same moment (section 7). The report also documents this "
-            "candidate declining ~55% during a window where real oil pressure "
-            "stayed flat -- treat any steady decline this guess shows with that "
-            "in mind.",
+            note="Fitted from a single point: raw~84 at t=120s vs. the field "
+            "sheet's real 50.3 PSI at the same moment (section 7) -- kept only "
+            "because no better fit exists, not because it's trusted. Two "
+            "rounds of live validation (2026-08-19) have made this candidate's "
+            "standing worse, not better: it declines ~55% during idle while "
+            "real oil pressure stays flat (section 7); and at the settled 2570 "
+            "RPM plateau, where real oil pressure peaks at 65.9 PSI (the "
+            "highest reading on the whole field sheet), this candidate's raw "
+            "value (~35.6) is essentially the same as -- if anything slightly "
+            "below -- its own idle raw value (~37.8). It fails to rise at all "
+            "across the full confirmed RPM range. This guess is likely "
+            "showing a number with very little relationship to real oil "
+            "pressure; treat it as illustrative at best.",
         ),
     ),
     ReplayCandidate(
-        "Raw Water Pressure candidate", CandidateKey("1A0", "05", 1, 2, "LE"), RAW, 60,
-        "docs/master-test01-analysis.md section 8 (downgraded to 'weak' there; "
-        "shown here as a raw field despite a formal-engine score, per that "
-        "downgrade)",
-        Guess(
-            scale=0.0000296, offset=-0.0076, unit="PSI", basis=FITTED,
-            note="Fitted from raw 256 -> 0 PSI (key-on floor) and raw ~34000 -> "
-            "1 PSI (idle) per the field sheet (section 8). Section 8 also found "
-            "this candidate's step-test response far smaller than real water "
-            "pressure's -- this guess will under-read once RPM rises.",
+        "Raw Water Pressure candidate", CandidateKey("1A0", "05", 1, 2, "LE"), HYPOTHESIS, 60,
+        "docs/master-test01-analysis.md section 8 -- originally downgraded to "
+        "'weak' there, UPGRADED back to hypothesis tier on 2026-08-19 after "
+        "cross-test validation (see the Guess note below) substantially "
+        "addressed that downgrade's reasoning",
+        InterpolatedGuess(
+            points=((256, 0.0), (34160, 0.75), (38905, 1.7), (42335, 2.8), (45385, 4.1)),
+            unit="PSI", basis=FITTED,
+            note="Piecewise fit across 5 real anchor points from the FIRST RPM "
+            "step test, all confirmed 2026-08-19: raw 256 -> 0 PSI (key-on "
+            "floor), raw~34160 -> ~0.75 PSI (idle), raw~38905 -> 1.7 PSI (900 "
+            "RPM), raw~42335 -> 2.8 PSI (1380 RPM), raw~45385 -> 4.1 PSI "
+            "(settled 2570 RPM). Slope accelerates with RPM (0.000022 -> "
+            "0.00020 -> 0.00032 -> 0.00043 PSI/count) -- consistent with a "
+            "centrifugal impeller pump, where pressure scales with speed "
+            "squared. CROSS-VALIDATED against a SECOND, independent RPM step "
+            "test later in the same capture (2026-08-19): applying this exact "
+            "curve (fit only from the first test) to the second test's "
+            "actual RPM values predicts this candidate's readings to within "
+            "~1-11% at four more points (RPM 999/1352/1570/2492 -> predicted "
+            "1.93/2.74/3.01/4.02 PSI vs. actual guess 1.72/2.51/3.01/3.94 PSI) "
+            "-- one point matched almost exactly. A real physical curve fit "
+            "from one trial predicting a second, independent trial this well "
+            "is meaningfully stronger evidence than either test alone. (Gary "
+            "also asked whether this candidate might instead be fuel "
+            "consumption rate, GPH -- checked directly: real GPH during the "
+            "second test was 0.7/1.1/1.5/1.7/1.9/0.8, both the wrong absolute "
+            "scale and the wrong shape compared to this candidate's actual "
+            "readings, while the RPM-pressure curve matched well. Ruled out.) "
+            "Section 8's other concerns (coarse 58-value quantization, "
+            "onset-timing ambiguity with RPM specifically at engine-start) "
+            "still stand and are unaffected by this.",
         ),
     ),
     ReplayCandidate(

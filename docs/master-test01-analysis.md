@@ -381,12 +381,23 @@ real RPM range even accounting for that uncertainty. The absence of a
 clean 4-level staircase, by itself, is no longer treated as evidence
 against this candidate (see above) -- but the gain shortfall remains a
 real, unresolved gap.
-**Confidence: moderate.** Onset timing, idle-stability, and the
-step-test's jagged *shape* all now support it; step-test *gain* still
-does not.
-**Competing hypothesis**: oil pressure (byte 5's ~+29% step-test gain
-sits between real oil pressure's +24% and real RPM's +186%, so it doesn't
-cleanly rule out an oil-pressure-adjacent signal either).
+**Confidence: moderate**, trending toward moderate-to-good. **Update
+(2026-08-20)**: Gary confirmed real RPM directly at three points during
+live replay (900, 1380, and a settled 2570 RPM, the last one noisier --
+he described it as fluctuating before settling), letting
+`services/replay` fit this candidate's raw value against real RPM with a
+piecewise curve instead of a single line (the slope roughly triples then
+triples again across segments: 0.13 -> 0.23 -> 0.62 -> 3.15 RPM/count --
+see `candidates.py`). Onset timing, idle-stability, the step-test's
+jagged shape, and now three real RPM anchors across the confirmed range
+all support this candidate; the main open question is no longer "does it
+track RPM" but "how much further compression exists beyond 2570 RPM",
+since the field sheet's steps stop there.
+**Competing hypothesis**: oil pressure was the leading competing read
+here, but section 7's 2026-08-20 update found that candidate fails to
+track real oil pressure at all across the same RPM range (flat-to-lower
+raw value at 2570 RPM despite real oil pressure peaking there) -- no
+longer a strong competitor.
 **Best experiment to distinguish it**: log an actual tachometer reading
 (not just event timing) alongside a capture, ideally with the RPM steps
 each held for a clearly logged, multi-second duration so a scale factor
@@ -472,18 +483,38 @@ candidate **declines by ~55%** (84->38) -- a direct, material
 contradiction, not a minor discrepancy. A real oil-pressure sender
 holding steady for eight minutes should not produce a byte that halves
 over the same window.
-**Confidence: moderate**, downgraded from an initially strong read.
-Something real is happening at the right moments (key-off floor, engine-
-catch onset, RPM-step rise) but the steady-idle behavior directly
-contradicts the real gauge, so this can't be treated as a clean, simple
-encoding of oil pressure. The Phase 2 tool still scores it 80% (section
-4) purely on RPM-rank correlation across the five old discrete logs; it
-has no way to see this steady-idle contradiction, which only this manual
-cross-check surfaces.
+**Update (2026-08-20, live replay validation)**: two more real anchor
+points make this candidate's standing considerably worse, not better.
+Gary confirmed the settled 2570 RPM plateau (t~925-953s, the highest
+real oil-pressure reading on the whole field sheet: 65.9 PSI) -- at that
+exact point, this candidate's raw value (~35.6) is essentially identical
+to, if anything slightly *below*, its own raw value at idle (~37.8),
+where real oil pressure is only ~50 PSI. **This candidate fails to rise
+at all across the full confirmed RPM range** (idle through 2570 RPM),
+directly contradicting the single most basic expectation of an oil
+pressure signal. Separately, a systematic row-by-row comparison against
+every field-sheet reading (not just the anchor points) found this
+candidate *overshooting* real oil pressure by ~40% at the 900/1380 RPM
+points (guess ~75/~67 PSI vs. real 53.3/56.3 PSI) while simultaneously
+undershooting badly at idle (as already documented above) -- there is no
+consistent relationship to real oil pressure anywhere in this dataset,
+only noise that happens to correlate loosely with engine-catch timing.
+**`services/replay`'s candidate tier for this byte was downgraded from
+"hypothesis" to "raw" on 2026-08-20** as a direct result -- see
+`candidates.py`'s `Guess.note` for the exact numbers.
+**Confidence: weak**, downgraded further from "moderate". Something real
+still happens at key-on/engine-catch timing (that part is unaffected by
+this update), but the steady-idle contradiction plus the complete failure
+to track RPM across two independently-confirmed step points make this
+look decreasingly like oil pressure the more it's tested. The Phase 2
+tool still scores it 80% (section 4) purely on RPM-rank correlation
+across the five old discrete logs; it structurally cannot see any of
+this, since none of it came from that engine.
 **Competing hypothesis**: a related-but-different quantity (e.g. oil
 pressure convolved with a slow warm-up-coupled term), or something that
 only coincidentally moves with RPM/engine-catch events without actually
-being oil pressure.
+being oil pressure -- now the more likely reading, given it doesn't
+track real oil pressure at any tested RPM.
 **Best experiment to distinguish it**: at a brief, steady idle,
 **disconnect the oil-pressure sending unit's electrical connector for
 ~10-15 seconds** (real oil pressure is unaffected -- only the sensor
@@ -548,16 +579,48 @@ could simply compress the reportable range heavily, or the true
 water-pressure byte is a different, not-yet-identified field, or the
 approximate time alignment (section 4) is misplacing the comparison
 window -- this report cannot distinguish between these explanations.
-**Confidence: weak.** Downgraded further -- the engine-catch onset-timing
-evidence still points away from raw RPM more than toward it, but the
-gain mismatch plus the RPM-step window's unexpected smoothness (given the
-throttle technique) both now argue against a clean water-pressure
-identity too, not just against RPM.
+**Update (2026-08-20, live replay validation) -- upgraded back to
+moderate-to-good.** The +15%/+486% gain mismatch above was measured
+against a crude 2-point linear fit; once real anchor points across the
+*full* RPM range were available, the picture changed substantially. Gary
+confirmed three more real readings during the settled portions of the
+first RPM-step test: 900 RPM -> 1.7 PSI, 1380 RPM -> 2.8 PSI, 2570 RPM ->
+4.1 PSI (plus the already-known 0 PSI at key-on and ~0.75 PSI at idle).
+Fitting this candidate's raw value against those 5 points (not a single
+line -- the slope itself accelerates with RPM: 0.000022 -> 0.00020 ->
+0.00032 -> 0.00043 PSI/count) shows a curve consistent with a
+**centrifugal impeller pump, where output pressure scales roughly with
+the square of speed** -- exactly the physical mechanism a raw-water pickup
+driven directly off the engine should follow, and exactly the kind of
+curve a flat linear guess could never have captured.
+**That fit was then cross-validated against a second, independent RPM
+step test later in the same capture** (Gary: idle/990/1400/2000/2500 RPM,
+~23:01-23:03) that this candidate's fit had never seen. Applying the
+first test's curve to the second test's actual measured RPM predicted
+this candidate's readings to within 1-11% at all four checked points
+(RPM 999/1352/1570/2492 -> predicted 1.93/2.74/3.01/4.02 PSI vs. actual
+1.72/2.51/3.01/3.94 PSI; the 1570 RPM point matched almost exactly). A
+curve fit from one trial correctly predicting an independent second
+trial is meaningfully stronger evidence than either trial alone --
+coincidental noise doesn't reproducibly extrapolate like that.
+**A specific alternative was also directly ruled out**: Gary asked
+whether this candidate might be fuel consumption rate (GPH) instead,
+since that also rises with RPM. The field sheet's real GPH during the
+second test (0.7/1.1/1.5/1.7/1.9/0.8) is both the wrong absolute scale
+and the wrong shape compared to this candidate's actual readings, while
+the RPM-pressure curve matched well -- ruled out.
+**Confidence: moderate-to-good**, upgraded from "weak". `services/replay`'s
+candidate tier was moved back from "raw" to "hypothesis" on 2026-08-20 as
+a direct result -- see `candidates.py`'s `Guess.note` for the full
+numbers. The remaining concerns below are unaffected by this and still
+stand.
 **Competing hypothesis**: RPM itself (the original ambiguity -- see
-section 5) or oil pressure (this candidate's own +15% step-test gain is
-closer in order of magnitude to real oil pressure's +24% than to real
-water pressure's +486%, an unresolved wrinkle noted but not settled by
-this report).
+section 5) is weaker now that this candidate's gain profile has been
+shown to follow a physically-coherent, cross-validated pressure curve
+rather than RPM's own (differently-shaped, still poorly-fit) response.
+Oil pressure is no longer a strong competing read either -- section 7's
+2026-08-20 update found that candidate fails to track real oil pressure
+at all across the same RPM range this candidate tracks well.
 **Best experiment to distinguish it**: a capture where boat speed and
 engine RPM diverge (underway, not a flush/dockside test) so a true
 impeller/water-pump signal and a true crank-speed signal can mechanically
@@ -944,9 +1007,9 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Signal | Leading candidate | This report | Phase 2 tool (post-update) |
 |---|---|---|---|
 | Coolant Temperature | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good** -- real early-rise/plateau shape and timing match the field sheet; late-session instability unexplained | 55% |
-| Oil Pressure | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Moderate** (downgraded) -- right behavior at key events, but contradicts the field sheet's flat-idle reading | 80% (tool doesn't see the contradiction) |
-| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate** -- immediate rough-transient onset matches expected cranking/catch roughness, idle-stability matches, and the step-test's jaggedness now matches the manually overshot/corrected throttle technique; step-test gain still far short of real RPM's range | 65% (top candidate) |
-| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Weak** (downgraded further) -- engine-catch onset timing/shape still favors this over RPM, but step-test gain is far short of real water pressure's +486%, and this candidate stays smooth during the RPM-step window where a real RPM-driven pressure should plausibly have been bumpy too | 65% (RPM top-3) / 60% (RWP top-3) |
+| Oil Pressure | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Weak** (downgraded again, 2026-08-20) -- contradicts the field sheet's flat-idle reading AND fails to rise at all at a confirmed 2570 RPM / 65.9 PSI peak; no consistent relationship to real oil pressure found anywhere. Replay tier moved hypothesis->raw | 80% (tool doesn't see any of this) |
+| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate-to-good** (2026-08-20) -- immediate rough-transient onset, idle-stability, jaggedness matching the overshoot/correct throttle technique, plus 3 real RPM anchors (900/1380/2570) now fit via a piecewise curve instead of one bad line | 65% (top candidate) |
+| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Moderate-to-good** (upgraded, 2026-08-20) -- a 5-point piecewise fit (physically consistent with a centrifugal-pump pressure curve) was cross-validated against an independent second RPM test to within 1-11%; fuel-consumption-rate was proposed as an alternative and directly ruled out. Replay tier moved raw->hypothesis | 65% (RPM top-3) / 60% (RWP top-3, tool score unchanged -- doesn't see any of this either) |
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
 | Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |
@@ -965,14 +1028,25 @@ ambiguity's sharper but still-unresolved shape) that a handful of
   the true instantaneous RPM/oil/water waveform during the step test is
   unknown, only inferred.
 - RPM and raw water pressure remain mechanically coupled 1:1 on this test
-  rig (no independent boat-speed variation), so section 8's
-  disambiguation is based on response character and magnitude, not a case
-  where the two physical quantities actually diverge.
+  rig (no independent boat-speed variation), so a boat-speed-diverging
+  capture (section 8's "best experiment") still hasn't happened -- though
+  the 2026-08-20 cross-validation between two independent RPM step tests
+  is a real, different kind of evidence than response character/magnitude
+  alone, and now favors treating this candidate as water pressure over
+  RPM.
 - The oil-pressure candidate's steady-idle decline directly contradicts
-  the field sheet's flat real reading over the same window, and this is
-  not yet explained (section 7).
-- The coolant candidate's late-session instability is unexplained; there
-  is no ground truth covering that window to check it against.
+  the field sheet's flat real reading over the same window, and now also
+  fails to rise at all across the full confirmed RPM range up to a real
+  65.9 PSI peak (section 7, 2026-08-20 update) -- neither is explained;
+  this candidate is looking less and less like oil pressure the more it's
+  tested.
+- The coolant candidate's late-session instability is unexplained, and
+  now confirmed to start earlier than previously thought: even during the
+  RPM-step window (t~925-953s), the same real 152°F reading corresponded
+  to a raw value ~24% different from the one seen for that same 152°F
+  reading at t=600s (section 6, 2026-08-20 update) -- there is real,
+  unexplained drift in this candidate between its two fitted anchors, not
+  just after them.
 - The trim hypothesis is still not confirmed -- 5 of 7 burst clusters on
   the leading candidate fall at times with no documented trim activity
   (section 12).
