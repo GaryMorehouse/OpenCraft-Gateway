@@ -552,6 +552,18 @@ only noise that happens to correlate loosely with engine-catch timing.
 **`services/replay`'s candidate tier for this byte was downgraded from
 "hypothesis" to "raw" on 2026-08-20** as a direct result -- see
 `candidates.py`'s `Guess.note` for the exact numbers.
+**Further live confirmation (2026-08-20)**: Gary reported the gauge
+reading ~21 PSI at 39.3% into a replay (t~515.6s, 22:49:36 under this
+report's time alignment). The field sheet's nearest entry, 22:49, gives a
+real, steady 49.2 PSI at 560 RPM -- roughly idle, nothing dynamic
+happening. Checked directly against the raw log: this candidate's 20s
+window ending at that moment averages 38.1 raw (22.8 PSI under its own
+guess, matching what Gary saw), but the *raw* values inside that single
+20-second window swing wildly between 11 and 59 (6.6-35.3 PSI) -- large,
+fast noise during a period the real gauge should be flat. This is the
+same failure mode already documented above (steady-idle contradiction),
+now confirmed a second time at a completely different point in the
+timeline than the original idle-window finding.
 **Confidence: weak**, downgraded further from "moderate". Something real
 still happens at key-on/engine-catch timing (that part is unaffected by
 this update), but the steady-idle contradiction plus the complete failure
