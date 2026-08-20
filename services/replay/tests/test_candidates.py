@@ -80,6 +80,20 @@ class TestCandidateTable(unittest.TestCase):
         water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
         self.assertEqual(water.tier, HYPOTHESIS)
 
+    def test_trim_direction_candidate_is_unscored_hypothesis_with_signed_interpolated_guess(self):
+        # New structural finding, 2026-08-20: exactly 6 pulses alternating
+        # between two raw values, occurring nowhere else in the whole file,
+        # matching the field sheet's 6 documented trim movements in both
+        # count and order. Not one of the formal tool's 6 named hypotheses,
+        # so unscored (-1) rather than percent-rated.
+        trim_dir = next(c for c in CANDIDATES if c.label == "Trim Direction candidate")
+        self.assertEqual(trim_dir.tier, HYPOTHESIS)
+        self.assertEqual(trim_dir.confidence_pct, -1)
+        self.assertIsInstance(trim_dir.guess, InterpolatedGuess)
+        self.assertAlmostEqual(trim_dir.guess.apply(0), 0.0)
+        self.assertAlmostEqual(trim_dir.guess.apply(1), 1.0)
+        self.assertAlmostEqual(trim_dir.guess.apply(2), -1.0)
+
     def test_engine_hours_candidate_is_unscored_hypothesis_with_plain_guess(self):
         # New structural finding, 2026-08-20: a wall-clock-driven counter
         # (~59.58s/tick, stdev 0.006s across 21 ticks) categorically unlike

@@ -72,7 +72,7 @@ services/replay/app/publisher.py               writes to InfluxDB:
         v
 grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
                                                 "Candidate Signals (Replay)" table (raw values),
-                                                9 "(GUESS)" gauge panels (guess_value, per-candidate units)
+                                                10 "(GUESS)" gauge panels (guess_value, per-candidate units)
 ```
 
 ## `candidates.py`: what gets shown, and how
@@ -173,7 +173,7 @@ and is called out as such in its `note`.
 *separate* `guess_value` field (never overwriting `value`, the raw
 number), tagged with the guess's `unit` -- `apply()` works the same way
 for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
-change. Nine gauge panels in `diagnostics.json` (titled `"<Name>
+change. Ten gauge panels in `diagnostics.json` (titled `"<Name>
 (GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
 but in a single neutral blue rather than green/amber/red -- that
 traffic-light palette implies validated alarm severity these guesses
@@ -186,6 +186,24 @@ real-world reading like the others; it's structural (raw 23 = the first
 observed value = t~3s into the capture), so the gauge reads "minutes
 elapsed since this capture started," not any claimed absolute engine-hours
 value.
+
+**Trim Direction** (added 2026-08-20, `170` record `03` byte 2) uses an
+`InterpolatedGuess` with exact-integer anchors `(0,0), (1,1), (2,-1)` --
+not because the underlying relationship is a continuous curve (raw only
+ever takes these 3 values), but because it's the simplest existing
+mechanism for a non-linear raw-to-display mapping (a plain `Guess` can't
+send raw 1 up and raw 2 down). This candidate replaces Trim as the
+leading trim-related finding: a systematic search across every byte in
+the capture, prompted by Gary correcting the trim timing to "moved only
+starting ~22:59, then 3 full cycles in a row," found this byte idle at 0
+everywhere in the file except for exactly 6 pulses in one ~77s window,
+alternating cleanly between two raw values in an order matching the field
+sheet's Up/Down/Up/Down/Up/Down sequence exactly. See
+`docs/master-test01-analysis.md` section 12 for the full pulse-by-pulse
+breakdown. The original "Trim (GUESS)" position gauge (`1A0` record `0B`
+byte 3) is kept as a separate, still-weak candidate -- it estimates a
+continuous 0-100% position, which this new candidate cannot do (it's a
+discrete direction/activity flag, not a position sender).
 
 **A guess reading "wrong" is itself useful evidence, not a failure.** An
 `UNANCHORED` (or a poorly-`FITTED`) guess reading implausibly isn't this

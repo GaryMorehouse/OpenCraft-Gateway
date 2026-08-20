@@ -275,6 +275,33 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         ),
     ),
     ReplayCandidate(
+        "Trim Direction candidate", CandidateKey("170", "03", 2, 1, ""), HYPOTHESIS, -1,
+        "docs/master-test01-analysis.md section 12 -- new structural finding, "
+        "2026-08-20, found after Gary corrected the trim timing to 'moved "
+        "only starting ~22:59, then 3 full up/down cycles in a row'; not one "
+        "of the formal Phase 2 tool's 6 named hypotheses",
+        InterpolatedGuess(
+            points=((0, 0), (1, 1), (2, -1)),
+            unit="dir", basis=FITTED,
+            note="Sits at 0 for the ENTIRE 22-minute file except for exactly "
+            "6 pulses spanning t=1033.3-1110.1s (22:58:13-22:59:30, straddling "
+            "the field sheet's 22:59 mark within its own documented alignment "
+            "tolerance), each ~8s long, cleanly alternating between raw value "
+            "1 and raw value 2 (1,2,1,2,1,2) with 2.9-7.75s gaps back at 0 "
+            "between them. Zero occurrences of this byte taking any nonzero "
+            "value anywhere else in the file. This is an exact match, in both "
+            "count and order, for the field sheet's documented 3 full "
+            "up/down cycles (6 movements: Up, Down, Up, Down, Up, Down) -- "
+            "raw 1 mapped to +1 (Up) and raw 2 to -1 (Down) purely to match "
+            "that order; which physical direction is actually 1 vs 2 is "
+            "inferred from ordering, not independently confirmed. Almost "
+            "certainly a trim motor direction/active status flag (0=idle), "
+            "not a continuous position sender -- distinct from the older, "
+            "much weaker 'Trim candidate' above, which guesses at a "
+            "continuous 0-100% position on a different byte.",
+        ),
+    ),
+    ReplayCandidate(
         "Engine/mode status flag", CandidateKey("1A0", "00", 1, 1, ""), RAW, -1,
         "docs/master-test01-analysis.md section 3 -- a structural status flag, "
         "not a physical-value candidate; included as a diagnostic curiosity",

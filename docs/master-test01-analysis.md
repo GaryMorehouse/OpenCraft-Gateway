@@ -847,6 +847,78 @@ equivalent single-variable manipulation available.
 
 ## 12. Trim hypothesis
 
+**Update (2026-08-20): a much stronger candidate found.** Gary corrected
+this report's assumed trim window -- trim moved *only* starting ~22:59,
+then ran through 3 full up/down cycles in one continuous sequence (not
+spread across the whole 22:59-23:00 minute as originally assumed from the
+sheet's minute-resolution timestamps). That correction motivated a fresh,
+systematic search: rank every byte in the entire capture (all IDs, all
+records, all offsets) by how concentrated its value transitions are
+inside a window around the corrected trim time, versus how quiet it is
+everywhere else in the file. One byte stood out sharply above everything
+else found, including the original leading candidate below:
+
+**CAN ID**: `170`
+**Bytes**: record `03`, byte 2 (a single byte immediately adjacent to the
+coolant temperature word, section 6's bytes 0-1 of the same record).
+**Observed behavior**: this byte reads exactly `0` for the *entire*
+21.9-minute file except for one contiguous span, t=1033.3-1110.1s
+(22:58:13-22:59:30 under this report's time alignment -- straddling the
+field sheet's "22:59" mark, well within the +/-30-60s alignment tolerance
+section 4 already establishes). Within that span, and nowhere else in the
+file, it produces **exactly 6 pulses**, each ~8.0-8.6 seconds long,
+separated by 2.9-7.75s gaps back at 0, cleanly alternating between raw
+value `1` and raw value `2`:
+
+```
+pulse   start (s)   end (s)   duration   raw value(s)
+1       1033.263    1041.903   8.64 s    1 (mixed briefly with 2 -- see below)
+2       1049.648    1058.287   8.64 s    2
+3       1062.160    1070.303   8.14 s    1
+4       1077.452    1085.595   8.14 s    2
+5       1091.156    1099.199   8.04 s    1
+6       1102.079    1110.122   8.04 s    2
+```
+
+**Evidence FOR**: this is an exact match, in both count and order, to the
+field sheet's documented "3 full up/down cycles (6 movements: Up, Down,
+Up, Down, Up, Down)" starting from the trim-down position: 6 discrete
+events, alternating cleanly between two states, occurring exactly once in
+the whole 22-minute file, at a time consistent (within already-established
+tolerance) with the corrected trim window. The ~8-second pulse duration is
+physically plausible for a single end-to-end (or near-end-to-end) trim ram
+stroke. The base rate for this shape appearing by chance -- 6 pulses,
+2-valued, strictly alternating, isolated to one ~77s span out of 1312s, and
+nowhere else in the file -- is very low; this is now the strongest, most
+specific piece of evidence found for any candidate in this section. The
+first pulse briefly mixes values 1 and 2 (see raw trace in the report's
+working notes) before settling into a clean 1/2/1/2/1/2 alternation for
+pulses 2-6 -- plausibly some initial switch bounce on the very first
+movement, or the true state during the transition instant, not something
+that undermines the rest of the pattern.
+**Evidence AGAINST**: this byte only ever takes 3 distinct values (0, 1,
+2) -- it is almost certainly a discrete motor-direction/active status
+flag, not a continuous position sender, so it cannot answer "what trim
+angle" the way a real position candidate would; it only answers "was trim
+moving, and in roughly which of two states." Which raw value corresponds
+to physically "Up" vs "Down" is inferred purely from matching the sheet's
+stated order (1=first movement=Up, 2=second=Down, ...), not independently
+confirmed -- an isolated single-direction trim test (see section 17) would
+confirm or refute this assignment directly.
+**Confidence: moderate-to-good** for "this byte reflects trim motor
+activity/direction," clearly stronger than the original candidate below;
+still unconfirmed for the specific 1=Up/2=Down direction assignment. Not
+one of the formal Phase 2 tool's 6 named hypotheses (trim was never
+one), so carries an unscored (-1) confidence in replay rather than a
+percentage -- see `docs/replay.md`.
+**Best experiment to distinguish it further**: an isolated single-movement
+trim test (just one Up, or just one Down, at a known clock time, engine
+otherwise idle) would confirm both the direction assignment and rule out
+any remaining chance that this byte's alternation is coincidental rather
+than direction-encoding.
+
+### Original leading candidate (superseded above, kept for the record)
+
 **CAN ID**: `1A0`
 **Bytes**: record `0B`, bytes 0, 3, and 6 (low-cardinality, correlated
 burst timing).
@@ -905,7 +977,13 @@ with a brief status/fault flag or a periodic self-check pulse than with a
 human pressing a trim button at an arbitrary, unlogged moment.
 **Confidence: very weak / exploratory.** A real lead worth checking, not
 evidence. Not scored by the formal Phase 2 engine (trim remains "not yet
-testable" there -- section 4).
+testable" there -- section 4). **Update (2026-08-20)**: now superseded by
+the much stronger `170` record `03` byte 2 candidate above -- with a
+clean, exactly-6-pulse, correctly-ordered alternating signal now
+identified and isolated to a single ~77s span in the whole file, this
+candidate's five unexplained clusters look even more clearly like
+coincidental noise (an unrelated periodic status/diagnostic byte) rather
+than a partial or fragmented view of the same trim event.
 **Competing hypothesis**: an unrelated periodic status/diagnostic message
 on the same record that happens to correlate with the trim window by
 chance, given five of its seven total clusters fall outside any
@@ -1063,7 +1141,8 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
 | Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |
-| Trim | `1A0` rec `0B` bytes 0, 3, 6 (tentative, new) | **Very weak / exploratory** -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |
+| Trim Direction | `170` rec `03` byte 2 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- exactly 6 alternating pulses, matching the field sheet's 6-movement count and Up/Down/Up/Down/Up/Down order exactly, isolated to one ~77s span with zero occurrences anywhere else in the 22-minute file | not one of the 6 named hypotheses (unscored) |
+| Trim (original candidate) | `1A0` rec `0B` bytes 0, 3, 6 | **Very weak / exploratory**, superseded above -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |
 | Engine/mode status flag | `1A0` rec `00` bytes 1-2 (not one of the named hypotheses) | Steps at the same 5 timestamps as the RPM/pressure segment boundaries -- a corroborating structural signal, not a physical-value candidate | n/a |
 | Engine Hours/Minutes | `1A0` rec `02` byte 3 (new, 2026-08-20, not one of the named hypotheses) | **Strong structural evidence** -- wall-clock-paced counter (59.576s mean interval, stdev 0.006s across 21 ticks), categorically unlike every frame-driven counter elsewhere in this capture | not yet run through the formal 6-hypothesis tool (unscored) |
 
@@ -1098,9 +1177,14 @@ ambiguity's sharper but still-unresolved shape) that a handful of
   reading at t=600s (section 6, 2026-08-20 update) -- there is real,
   unexplained drift in this candidate between its two fitted anchors, not
   just after them.
-- The trim hypothesis is still not confirmed -- 5 of 7 burst clusters on
-  the leading candidate fall at times with no documented trim activity
-  (section 12).
+- The trim direction candidate (`170` rec `03` byte 2, 2026-08-20) is
+  strong on timing/count/order but still doesn't confirm which raw value
+  (1 or 2) is physically Up vs Down -- that assignment is inferred from
+  matching the sheet's stated order, not independently tested (section
+  12). The original, much weaker trim candidate (`1A0` rec `0B` bytes 0,
+  3, 6) is still not confirmed either -- 5 of its 7 burst clusters fall at
+  times with no documented trim activity, now looking more clearly like
+  unrelated noise given the stronger candidate found above.
 - The tach was connected throughout `master-test01`, but the deliberate
   connect/disconnect/reconnect A/B toggle was not performed during this
   specific test (confirmed by the field sheet); the "is the tach an

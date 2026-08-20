@@ -870,6 +870,58 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 18,
+      "type": "gauge",
+      "title": "Trim Direction (GUESS)",
+      "description": "New structural finding, 2026-08-20 -- not one of the formal Phase 2 tool's 6 named hypotheses, so unscored (confidence -1). Sits at 0 for the entire 22-minute file except for exactly 6 pulses (t=1033.3-1110.1s, straddling the field sheet's 22:59 mark) cleanly alternating between raw 1 and raw 2 -- an exact count/order match for the field sheet's 3 full up/down cycles. Mapped to +1 (Up) / -1 (Down) / 0 (idle) purely to match that documented order; which raw value is physically which direction is inferred, not independently confirmed. Distinct from the older, much weaker 'Trim (GUESS)' position gauge -- see docs/master-test01-analysis.md section 12.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 45
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Trim Direction candidate\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": -1,
+          "max": 1,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }
