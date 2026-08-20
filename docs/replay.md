@@ -138,18 +138,35 @@ where a fit still doesn't fully hold up (e.g. Battery Voltage's *other*
 raw state maps to ~10.2V under the same fit, which a real battery
 shouldn't do while running -- still evidence against a clean, continuous
 voltage signal, even with one state now reading correctly). Oil Pressure
-was also confirmed plausible but visibly noisy frame-to-frame -- its
-gauge panel was changed to a 10-second rolling mean instead of the latest
-single sample.
+and Coolant Temperature were also confirmed plausible but visibly noisy
+frame-to-frame -- both gauge panels were changed to a rolling mean instead
+of the latest single sample (Coolant: 10s; Oil Pressure: 20s, widened
+further after it was still fluctuating at 10s).
+
+**RPM needed a different fix.** Gary watched two more real points during
+the first RPM-step test (2026-08-19): raw~5960 at a real 900 RPM, raw~6730
+at a real 1380 RPM. Combined with the idle anchor, that's 3 confirmed
+points, and they're not collinear -- the slope roughly triples from the
+idle segment to the 900-1380 segment. A single `Guess` scale/offset can't
+represent that honestly (fitting the upper two points alone put idle at a
+nonsensical *negative* RPM). `candidates.py` adds an `InterpolatedGuess`
+for exactly this case: a tuple of confirmed `(raw, real_value)` points,
+linearly interpolated between neighbors and linearly extrapolated beyond
+the endpoints using the nearest segment's slope. RPM is the only
+candidate using it so far -- everything else still fits a single line
+well enough. Extrapolated territory (past the last confirmed anchor,
+raw>6730 for RPM) is explicitly the shakiest part of any `InterpolatedGuess`
+and is called out as such in its `note`.
 
 `publisher.py` computes `guess.apply(raw_value)` and writes it as a
 *separate* `guess_value` field (never overwriting `value`, the raw
-number), tagged with the guess's `unit`. Eight gauge panels in
-`diagnostics.json` (titled `"<Name> (GUESS)"`) read `guess_value`, styled
-like Engine Overview's real gauges but in a single neutral blue rather
-than green/amber/red -- that traffic-light palette implies validated
-alarm severity these guesses haven't earned, so it's deliberately not
-reused here.
+number), tagged with the guess's `unit` -- `apply()` works the same way
+for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
+change. Eight gauge panels in `diagnostics.json` (titled `"<Name>
+(GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
+but in a single neutral blue rather than green/amber/red -- that
+traffic-light palette implies validated alarm severity these guesses
+haven't earned, so it's deliberately not reused here.
 
 **A guess reading "wrong" is itself useful evidence, not a failure.** An
 `UNANCHORED` (or a poorly-`FITTED`) guess reading implausibly isn't this
@@ -291,8 +308,10 @@ python -m unittest discover -s services/replay/tests -t services/replay
 
 Covers `pacing.py` (speed math), `candidates.py` (table sanity -- unique
 labels, valid tiers, every candidate cited, "hypothesis" tier reserved
-for >=50% confidence, every `Guess` has a valid basis/unit/note, `Guess`'s
-own scale/offset math), `reader.py` (frame matching/extraction, including
+for >=50% confidence, every `Guess`/`InterpolatedGuess` has a valid
+basis/unit/note, `Guess`'s scale/offset math, `InterpolatedGuess`'s
+interpolation/extrapolation math including that RPM's own confirmed
+anchor points round-trip exactly), `reader.py` (frame matching/extraction, including
 against a real committed sample log), `config.py` (CLI parsing),
 `publisher.py` (the `can_replay` point built correctly with/without a
 guess attached, via a recording stand-in that never touches a real

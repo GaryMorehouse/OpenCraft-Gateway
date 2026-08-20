@@ -414,7 +414,7 @@
       "id": 9,
       "type": "gauge",
       "title": "RPM (GUESS)",
-      "description": "GUESS, not a decode. Fitted from raw~4270-4590 during the field sheet's real idle 540-590 RPM window (analysis section 5). Known to under-read at higher RPM -- this candidate's own range is far smaller than real RPM's.",
+      "description": "Piecewise fit across 4 real anchor points: raw 0 -> 0 RPM (engine off), raw~4487 -> ~565 RPM (field sheet idle window), raw~5960 -> 900 RPM and raw~6730 -> 1380 RPM (Gary live-confirmed during the first RPM-step test, 2026-08-19). The slope roughly triples across these segments -- a single straight line fit none of them well, which is why this uses interpolation instead of scale/offset. Values above raw~6730 are extrapolated past the last confirmed anchor and are the least trustworthy part of this guess.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -516,7 +516,7 @@
       "id": 11,
       "type": "gauge",
       "title": "Oil Pressure (GUESS)",
-      "description": "GUESS, not a decode. Fitted from raw~84 at t=120s vs. real 50.3 PSI (section 7). The report found this candidate declines ~55% during a window where real oil pressure stayed flat -- a drop here may reflect that, not a real pressure loss. Gauge shows a 10s rolling mean (not the single latest sample) since this candidate visibly jumps frame to frame.",
+      "description": "GUESS, not a decode. Fitted from raw~84 at t=120s vs. real 50.3 PSI (section 7). The report found this candidate declines ~55% during a window where real oil pressure stayed flat -- a drop here may reflect that, not a real pressure loss. Gauge shows a 20s rolling mean (not the single latest sample) since this candidate visibly jumps frame to frame.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -529,7 +529,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -10s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure candidate\")\n  |> mean()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -20s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure candidate\")\n  |> mean()",
           "refId": "A"
         }
       ],

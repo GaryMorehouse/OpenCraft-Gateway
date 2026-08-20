@@ -34,7 +34,7 @@ master-test01-specific entries in place.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 from smartcraft_toolkit.signals import CandidateKey
 
@@ -50,6 +50,9 @@ UNANCHORED = "unanchored"  # scale/offset assumed (e.g. "byte range = 0-100%"), 
 
 @dataclass(frozen=True)
 class Guess:
+    """A single straight-line scale/offset guess. Use this unless there's
+    evidence the candidate's response is non-linear (see InterpolatedGuess)."""
+
     scale: float
     offset: float
     unit: str
@@ -61,25 +64,69 @@ class Guess:
 
 
 @dataclass(frozen=True)
+class InterpolatedGuess:
+    """A guess built from >=2 confirmed (raw, real_value) anchor points,
+    linearly interpolated between neighbors and linearly extrapolated beyond
+    the first/last point using that nearest segment's slope.
+
+    Exists because at least one candidate (RPM) has enough real anchor
+    points now to show its response genuinely isn't a single straight line
+    -- forcing one `Guess` scale/offset across the whole range fits none of
+    the segments well. This is still a guess, not a decode: interpolating
+    between real points is a reasonable estimate: extrapolating beyond the
+    last confirmed point is a much shakier one, and callers should treat
+    values past `points[-1][0]` accordingly.
+    """
+
+    points: tuple[tuple[float, float], ...]  # (raw, real_value), sorted ascending by raw
+    unit: str
+    basis: str  # always FITTED -- an InterpolatedGuess with no real anchors isn't meaningful
+    note: str
+
+    def apply(self, raw_value: int) -> float:
+        pts = self.points
+        if raw_value <= pts[0][0]:
+            (r0, v0), (r1, v1) = pts[0], pts[1]
+        elif raw_value >= pts[-1][0]:
+            (r0, v0), (r1, v1) = pts[-2], pts[-1]
+        else:
+            (r0, v0), (r1, v1) = pts[0], pts[1]  # overwritten by the loop below
+            for i in range(len(pts) - 1):
+                if pts[i][0] <= raw_value <= pts[i + 1][0]:
+                    (r0, v0), (r1, v1) = pts[i], pts[i + 1]
+                    break
+        slope = (v1 - v0) / (r1 - r0)
+        return v0 + (raw_value - r0) * slope
+
+
+@dataclass(frozen=True)
 class ReplayCandidate:
     label: str  # panel-facing name; also the InfluxDB "hypothesis" tag value
     key: CandidateKey
     tier: str  # HYPOTHESIS or RAW
     confidence_pct: int  # -1 if unscored by the formal Phase 2 engine
     source: str  # where this assessment is documented, for traceability
-    guess: Optional[Guess] = None  # None = no defensible guess; show raw only
+    guess: Optional[Union[Guess, InterpolatedGuess]] = None  # None = no defensible guess; show raw only
 
 
 MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
     ReplayCandidate(
         "RPM candidate", CandidateKey("170", "01", 4, 2, "BE"), HYPOTHESIS, 65,
         "docs/master-test01-analysis.md section 5",
-        Guess(
-            scale=0.125, offset=0, unit="RPM", basis=FITTED,
-            note="Fitted from raw~4270-4590 during the field sheet's real idle "
-            "540-590 RPM window (section 5). Known to be a poor fit at higher "
-            "RPM -- this candidate's own dynamic range is far too small "
-            "relative to real RPM's, per the same section.",
+        InterpolatedGuess(
+            points=((0, 0), (4487, 565), (5960, 900), (6730, 1380)),
+            unit="RPM", basis=FITTED,
+            note="Piecewise fit across 4 real anchor points: raw 0 -> 0 RPM "
+            "(engine off), raw~4487 -> ~565 RPM (field sheet idle window, "
+            "section 5), raw~5960 -> 900 RPM and raw~6730 -> 1380 RPM (Gary's "
+            "live observation during the first RPM-step test, 2026-08-19). "
+            "The slope roughly triples across these segments (0.13 -> 0.23 -> "
+            "0.62 RPM/count) -- a single straight line fit none of them well, "
+            "which is why this candidate now uses interpolation instead of a "
+            "plain scale/offset. Values above raw~6730 (past the last "
+            "confirmed step) are extrapolated using that segment's slope and "
+            "are the least trustworthy part of this guess -- the field sheet's "
+            "later steps (1910, 2570) haven't been anchored yet.",
         ),
     ),
     ReplayCandidate(
