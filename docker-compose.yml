@@ -81,6 +81,26 @@ services:
       SIMULATOR_ENGINES: ${SIMULATOR_ENGINES:-port}
       SIMULATOR_TICK_SECONDS: ${SIMULATOR_TICK_SECONDS:-1}
 
+  # Replays a real captured SmartCraft log (e.g. master-test01.log) through
+  # the same InfluxDB -> Grafana path the simulator/gateway publisher uses,
+  # so a real capture can be watched moving through the dashboard for human
+  # validation. See docs/replay.md. No profile membership: not part of
+  # `up`, since it's an interactive, one-off tool you run deliberately, not
+  # a long-lived background service like influxdb/grafana/simulator --
+  # start it explicitly with `docker compose run --rm replay [args]`.
+  replay:
+    build:
+      context: .
+      dockerfile: services/replay/Dockerfile
+    container_name: opencraft-replay
+    stdin_open: true # keeps stdin open for the p/r/q controls
+    tty: true
+    environment:
+      INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-opencraft}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-telemetry}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:?set INFLUXDB_TOKEN in .env}
+
 volumes:
   influxdb-data:
   influxdb-config:

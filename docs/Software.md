@@ -33,6 +33,18 @@ This separation matters for the eventual SmartCraft driver: it will
 replace `engine.py`'s role (produce engine state) while `signalk.py` and
 `publisher.py` are reusable as-is, or very nearly so.
 
+## Replay (`services/replay`)
+
+Feeds a real captured SmartCraft log (e.g. `master-test01.log`) through
+the same InfluxDB -> Grafana path the simulator uses, so a real capture
+can be watched moving through the dashboard for human validation, without
+decoding anything not already evidence-scored in
+[docs/master-test01-analysis.md](master-test01-analysis.md). Writes to
+its own `can_replay`/`replay_status` measurements (never the simulator's
+calibrated `propulsion.*` fields) and surfaces in the Diagnostics
+dashboard's "REPLAY MODE" section rather than a new dashboard. See
+[docs/replay.md](replay.md) for the full design and how to run it.
+
 ## Dashboards
 
 Dashboard JSON lives in `grafana/dashboards/` and is provisioned
@@ -66,7 +78,9 @@ made in the Grafana UI are NOT persisted; edit the JSON files and redeploy
   notification path/state/severity/message, not just the worst-case banner
   summary), Data Source Status (real: seconds since the last telemetry
   point was received), ECU Status and Gateway Status (honest placeholders
-  — no physical hardware exists yet to report on).
+  — no physical hardware exists yet to report on), and a "REPLAY MODE"
+  section (Replay Status, Candidate Signals) that populates only while
+  `services/replay` is running — see [docs/replay.md](replay.md).
 
 ### Color system
 

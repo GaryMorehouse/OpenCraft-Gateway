@@ -100,6 +100,109 @@
         "mode": "markdown",
         "content": "**Not yet available.**\n\nNo physical OpenCraft gateway hardware is deployed. This panel will show gateway health (uptime, CAN bus status, publish errors) once the SmartCraft gateway is implemented (future milestone)."
       }
+    },
+    {
+      "id": 5,
+      "type": "text",
+      "title": "⚠ REPLAY MODE",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 15 },
+      "options": {
+        "mode": "markdown",
+        "content": "**The two panels below show replayed historical capture data, not the live vessel.** They only populate while `services/replay` is running against a captured log such as `master-test01.log` -- see `docs/replay.md`. Every value is a raw or hypothesis-tagged CAN field candidate (see `docs/master-test01-analysis.md`), never a confirmed, calibrated decode. Check the Replay Status panel's `capture`/`state` columns before trusting anything in the Candidate Signals table."
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Replay Status",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"replay_status\")\n  |> filter(fn: (r) => r._field == \"state\" or r._field == \"position_s\" or r._field == \"duration_s\" or r._field == \"pct_complete\" or r._field == \"speed\")\n  |> last()\n  |> pivot(rowKey: [\"capture\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"capture\", \"state\", \"speed\", \"position_s\", \"duration_s\", \"pct_complete\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "state" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-background" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "playing": { "color": "green", "index": 0 } } },
+                  { "type": "value", "options": { "paused": { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "finished": { "color": "blue", "index": 2 } } },
+                  { "type": "value", "options": { "stopped": { "color": "red", "index": 3 } } }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "pct_complete" },
+            "properties": [{ "id": "unit", "value": "percent" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "position_s" },
+            "properties": [{ "id": "unit", "value": "s" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "duration_s" },
+            "properties": [{ "id": "unit", "value": "s" }]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Candidate Signals (Replay)",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 18 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\")\n  |> filter(fn: (r) => r._field == \"value\" or r._field == \"confidence_pct\")\n  |> last()\n  |> pivot(rowKey: [\"hypothesis\", \"tier\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"hypothesis\", \"tier\", \"value\", \"confidence_pct\"])\n  |> sort(columns: [\"tier\", \"hypothesis\"])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "tier" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-background" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "hypothesis": { "color": "blue", "index": 0 } } },
+                  { "type": "value", "options": { "raw": { "color": "gray", "index": 1 } } }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "confidence_pct" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [{ "type": "value", "options": { "-1": { "text": "unscored" } } }]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
     }
   ]
 }
