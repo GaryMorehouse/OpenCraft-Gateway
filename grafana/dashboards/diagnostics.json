@@ -813,7 +813,8 @@
                 "color": "#5794F2"
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
       }
