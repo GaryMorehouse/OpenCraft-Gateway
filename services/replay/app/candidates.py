@@ -124,11 +124,14 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         "docs/master-test01-analysis.md section 9 (indistinguishable from Depth "
         "with this dataset)",
         Guess(
-            scale=100 / 255, offset=0, unit="%", basis=UNANCHORED,
-            note="Naive 'byte range = 0-100%' assumption, NOT fitted to any real "
-            "reading. The field sheet's real fuel level was ~100% throughout "
-            "(section 9) -- if this guess reads far below that, it's evidence "
-            "against this candidate/assumption, not a sign the tank was low.",
+            scale=0.0, offset=100.0, unit="%", basis=FITTED,
+            note="Flat 100% -- this candidate's raw value barely moves at all "
+            "(4-5 the entire session, section 9), and Gary confirmed live "
+            "(2026-08-19, 25% into a replay) real fuel was ~100% at that point "
+            "too, matching the field sheet's 100% throughout. There isn't "
+            "enough raw dynamic range to fit a scale, only an offset -- this "
+            "guess can't tell a real constant-100% signal apart from any other "
+            "near-constant byte, it just no longer contradicts the known value.",
         ),
     ),
     ReplayCandidate(
@@ -136,11 +139,11 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         "docs/master-test01-analysis.md section 10 (indistinguishable from Fuel "
         "with this dataset)",
         Guess(
-            scale=100 / 65535, offset=0, unit="ft", basis=UNANCHORED,
-            note="Naive 'word range = 0-100ft' assumption, NOT fitted to any "
-            "real reading. The field sheet's real depth was ~8.9-9.1ft "
-            "(section 10) -- a large mismatch here is evidence against this "
-            "candidate/assumption, not a real depth change.",
+            scale=0.0016, offset=-38.204, unit="ft", basis=FITTED,
+            note="Two-point fit: raw 29440 -> 8.9ft at key-on (field sheet), "
+            "raw 29565 -> 9.1ft at 25% into a replay Gary watched live "
+            "(2026-08-19, t~328s). Small raw range behind this fit (125 counts) "
+            "-- treat the slope as a rough estimate, not a calibrated scale.",
         ),
     ),
     ReplayCandidate(
@@ -149,12 +152,15 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         "record-83 field; the specific record-81 candidate scored in the report "
         "has too few samples in this capture to display continuously",
         Guess(
-            scale=4 / 65535, offset=12, unit="V", basis=UNANCHORED,
-            note="Naive 'word range = 12-16V' assumption, NOT fitted to any real "
-            "reading. This field only ever takes 2 distinct raw values in the "
-            "whole capture (section 3/11) -- a real battery voltage should vary "
-            "continuously, so treat this gauge flipping between two fixed "
-            "numbers as evidence this candidate probably ISN'T battery voltage.",
+            scale=4 / 65535, offset=9.815, unit="V", basis=FITTED,
+            note="Anchored on raw 65284 -> 13.8V, confirmed live by Gary "
+            "(2026-08-19, 25% into a replay, t~328s) -- coincidentally the same "
+            "raw value seen at end-of-capture too. This field only ever takes 2 "
+            "distinct raw values in the whole capture (section 3/11); the OTHER "
+            "state (5895) maps to ~10.2V under this same fit, which a real "
+            "battery voltage should not do while running -- still evidence this "
+            "candidate probably isn't a clean, continuous voltage signal, even "
+            "though one of its two states now reads correctly.",
         ),
     ),
     ReplayCandidate(
@@ -162,12 +168,14 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         "docs/master-test01-analysis.md section 12 ('very weak / exploratory'; "
         "not scored by the formal Phase 2 engine)",
         Guess(
-            scale=-100 / 255, offset=100, unit="%", basis=FITTED,
-            note="Inverted 'byte range = 0-100%' guess, anchored on the field "
-            "sheet's trim starting fully DOWN (0%) at key-on, matching this "
-            "candidate's near-constant raw ~239-244 at the start of the capture "
-            "(section 12). Direction (which end is 'down') is a guess; magnitude "
-            "during the actual trim-cycle window is not confirmed.",
+            scale=-100 / 255, offset=94.12, unit="%", basis=FITTED,
+            note="Inverted 'byte range = 0-100%' guess, recentered so the "
+            "observed ~239-240 raw 'down' baseline reads ~0% -- confirmed by "
+            "both the field sheet (trim starts fully DOWN at key-on, raw~239) "
+            "and Gary's live observation (2026-08-19, 25% into a replay, "
+            "raw~240, expected ~0%). Direction (which end is 'down') is still "
+            "a guess; magnitude during the actual trim-cycle window is not "
+            "confirmed.",
         ),
     ),
     ReplayCandidate(

@@ -122,8 +122,25 @@ Each `ReplayCandidate` in `candidates.py` can carry an optional `Guess`
   points (e.g. RPM's compressed dynamic range at higher speeds).
 - **`UNANCHORED`** -- a placeholder assumption with nothing behind it at
   all (typically "this byte's/word's full numeric range = 0-100%" or a
-  plausible-looking min/max). Used for candidates where no real reading
-  exists to fit against (Fuel, Depth, Battery Voltage here).
+  plausible-looking min/max), for a candidate with no real reading to fit
+  against yet. None of `candidates.py`'s current entries are `UNANCHORED`
+  any more (see below) -- it's kept as a category for whatever gets added
+  next without a ground-truth reading behind it yet.
+
+Fuel, Depth, Battery Voltage, and Trim started out `UNANCHORED` and got
+refitted to `FITTED` on 2026-08-19 using Gary's live observation, watching
+a real-time replay: 25% into the file (t~328s), he reported Fuel~100%,
+Depth~9.1ft, Battery~13.8V, Trim~0%. That's the same kind of anchor as a
+field-sheet reading -- a real value observed at a known moment -- just
+captured live during replay instead of written down beforehand.
+`candidates.py`'s `Guess.note` for each cites this explicitly, including
+where a fit still doesn't fully hold up (e.g. Battery Voltage's *other*
+raw state maps to ~10.2V under the same fit, which a real battery
+shouldn't do while running -- still evidence against a clean, continuous
+voltage signal, even with one state now reading correctly). Oil Pressure
+was also confirmed plausible but visibly noisy frame-to-frame -- its
+gauge panel was changed to a 10-second rolling mean instead of the latest
+single sample.
 
 `publisher.py` computes `guess.apply(raw_value)` and writes it as a
 *separate* `guess_value` field (never overwriting `value`, the raw
@@ -134,12 +151,13 @@ than green/amber/red -- that traffic-light palette implies validated
 alarm severity these guesses haven't earned, so it's deliberately not
 reused here.
 
-**A guess reading "wrong" is itself useful evidence, not a failure.** Fuel
-reading ~2% when the field sheet says the tank was ~100% the whole test
-isn't this replay tool malfunctioning -- it's the `UNANCHORED` guess
-(plus, more importantly, the underlying raw candidate byte) failing the
-same plausibility check a human glancing at the gauge would apply. That's
-exactly the "human validation" this whole mechanism exists for.
+**A guess reading "wrong" is itself useful evidence, not a failure.** An
+`UNANCHORED` (or a poorly-`FITTED`) guess reading implausibly isn't this
+replay tool malfunctioning -- it's the underlying raw candidate byte (or
+the specific scale/offset guessed for it) failing the same plausibility
+check a human glancing at the gauge would apply. That's exactly the
+"human validation" this whole mechanism exists for -- as demonstrated by
+Gary's 2026-08-19 pass, which is what fixed 4 of these 8 gauges.
 
 ## Running it
 
@@ -254,12 +272,16 @@ Run end-to-end against a real `docker compose --profile dev` InfluxDB +
 Grafana stack: replay parsed and played the full `master-test01.txt`
 capture (198,784 frames) at 1x, 5x, and 10x speed; `can_replay` and
 `replay_status` points were confirmed landing correctly via direct
-InfluxDB queries; all 9 candidates' `guess_value`s matched the ranges
-expected from `docs/master-test01-analysis.md` (including the
-`Fuel`/`Depth`/`Battery Voltage` guesses visibly *not* matching their
-real field-sheet values, as documented above); the Diagnostics dashboard
-was confirmed provisioned with all 16 panels via Grafana's API. The p/r/q
-controls and a full stop/restart were exercised manually.
+InfluxDB queries; the Diagnostics dashboard was confirmed provisioned
+with all 16 panels via Grafana's API; the p/r/q controls and a full
+stop/restart were exercised manually. Gary then watched a live replay and
+validated the gauges directly (2026-08-19): RPM, Coolant, Oil Pressure,
+and Raw Water Pressure all looked plausible on first pass (Oil Pressure
+noted as jumpy -- fixed with a 10s rolling mean, see above); Fuel, Depth,
+Battery Voltage, and Trim initially read implausibly (an `UNANCHORED`
+guess doing exactly its job -- flagging those candidates/assumptions as
+suspect) and were refitted using his live 25%-in observation as a new
+ground-truth anchor, same as the field sheet.
 
 ## Tests
 

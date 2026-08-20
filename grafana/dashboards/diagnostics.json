@@ -516,7 +516,7 @@
       "id": 11,
       "type": "gauge",
       "title": "Oil Pressure (GUESS)",
-      "description": "GUESS, not a decode. Fitted from raw~84 at t=120s vs. real 50.3 PSI (section 7). The report found this candidate declines ~55% during a window where real oil pressure stayed flat -- a drop here may reflect that, not a real pressure loss.",
+      "description": "GUESS, not a decode. Fitted from raw~84 at t=120s vs. real 50.3 PSI (section 7). The report found this candidate declines ~55% during a window where real oil pressure stayed flat -- a drop here may reflect that, not a real pressure loss. Gauge shows a 10s rolling mean (not the single latest sample) since this candidate visibly jumps frame to frame.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -529,7 +529,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure candidate\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -10s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure candidate\")\n  |> mean()",
           "refId": "A"
         }
       ],
@@ -618,7 +618,7 @@
       "id": 13,
       "type": "gauge",
       "title": "Fuel Level (GUESS)",
-      "description": "GUESS, not a decode -- UNANCHORED (byte range assumed = 0-100%, not fitted to any real reading). Real fuel was ~100% the whole test (section 9); if this reads far below that, it's evidence against this candidate, not a low tank.",
+      "description": "Flat 100% -- this candidate's raw value barely moves at all (4-5 the entire session), and Gary confirmed live (2026-08-19, 25% into a replay) real fuel was ~100% at that point too, matching the field sheet's 100% throughout. There isn't enough raw dynamic range to fit a scale, only an offset -- this guess can't tell a real constant-100% signal apart from any other near-constant byte, it just no longer contradicts the known value.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -669,7 +669,7 @@
       "id": 14,
       "type": "gauge",
       "title": "Depth (GUESS)",
-      "description": "GUESS, not a decode -- UNANCHORED (word range assumed = 0-100ft, not fitted to any real reading). Real depth was ~8.9-9.1ft (section 10); a large mismatch here is evidence against this candidate, not a real depth change.",
+      "description": "Two-point fit: raw 29440 -> 8.9ft at key-on (field sheet), raw 29565 -> 9.1ft at 25% into a replay Gary watched live (2026-08-19, t~328s). Small raw range behind this fit (125 counts) -- treat the slope as a rough estimate, not a calibrated scale.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -720,7 +720,7 @@
       "id": 15,
       "type": "gauge",
       "title": "Battery Voltage (GUESS)",
-      "description": "GUESS, not a decode -- UNANCHORED (word range assumed = 12-16V, not fitted). This field only takes 2 distinct raw values in the whole capture -- a real battery voltage should vary continuously, so this gauge flipping between two fixed numbers is evidence AGAINST this candidate being battery voltage.",
+      "description": "Anchored on raw 65284 -> 13.8V, confirmed live by Gary (2026-08-19, 25% into a replay, t~328s). This field only ever takes 2 distinct raw values in the whole capture; the OTHER state (5895) maps to ~10.2V under this same fit, which a real battery voltage should not do while running -- still evidence this candidate probably isn't a clean, continuous voltage signal, even though one of its two states now reads correctly.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -752,8 +752,8 @@
       "fieldConfig": {
         "defaults": {
           "unit": "volt",
-          "min": 10,
-          "max": 16,
+          "min": 9,
+          "max": 15,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -771,7 +771,7 @@
       "id": 16,
       "type": "gauge",
       "title": "Trim (GUESS)",
-      "description": "GUESS, not a decode. Inverted byte-range guess, anchored on the field sheet's trim starting fully DOWN (0%) at key-on, matching this candidate's near-constant raw ~239-244 at capture start (section 12). Direction is a guess; magnitude during the trim-cycle window is not confirmed.",
+      "description": "Inverted 'byte range = 0-100%' guess, recentered so the observed ~239-240 raw 'down' baseline reads ~0% -- confirmed by both the field sheet (trim starts fully DOWN at key-on) and Gary's live observation (2026-08-19, 25% into a replay, expected ~0%). Direction is still a guess; magnitude during the trim-cycle window is not confirmed.",
       "gridPos": {
         "h": 8,
         "w": 6,
