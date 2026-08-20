@@ -818,6 +818,58 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 17,
+      "type": "gauge",
+      "title": "Engine Hours/Minutes (GUESS)",
+      "description": "New structural finding, 2026-08-20 -- not one of the formal Phase 2 tool's 6 named hypotheses, so unscored (confidence -1) rather than percent-rated; see docs/master-test01-analysis.md section 3. Ticks up by exactly 1 count roughly every 59.58s (measured across 21 consecutive ticks: mean interval 59.576s, stdev 0.006s) -- a wall-clock-driven counter, categorically unlike every frame-driven counter elsewhere in this capture. Starts at raw 23 at key-on, so this is most likely a low byte of a continuously-accumulating engine-hours/run-time meter that was already at 23 when this capture began, not 'minutes since key-on'. Offset here just rebases the gauge to minutes elapsed since THIS capture started (0 at t~3s), not to any claimed absolute hour-meter value.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 45
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Engine Hours/Minutes candidate\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "min": 0,
+          "max": 25,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

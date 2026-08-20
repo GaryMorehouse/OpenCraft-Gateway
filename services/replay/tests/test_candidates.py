@@ -31,10 +31,22 @@ class TestCandidateTable(unittest.TestCase):
     def test_hypothesis_tier_only_used_for_moderate_or_better_confidence(self):
         # Mirrors this replay tool's own documented rule (candidates.py's
         # module docstring): "hypothesis" is reserved for candidates the
-        # analysis report calls at least moderate confidence.
+        # analysis report calls at least moderate confidence -- OR that are
+        # unscored (-1) because they aren't one of the formal Phase 2 tool's
+        # 6 named hypotheses at all (e.g. Engine Hours), as opposed to
+        # having been scored and found weak. -1 is never used as a way to
+        # dodge this rule for one of the 6 named hypotheses.
+        NAMED_HYPOTHESES = {"RPM", "Coolant Temperature", "Oil Pressure",
+                             "Raw Water Pressure", "Fuel Level", "Depth",
+                             "Battery Voltage"}
         for c in CANDIDATES:
-            if c.tier == HYPOTHESIS:
+            if c.tier != HYPOTHESIS:
+                continue
+            is_named = any(c.label.startswith(name) for name in NAMED_HYPOTHESES)
+            if is_named:
                 self.assertGreaterEqual(c.confidence_pct, 50, c.label)
+            else:
+                self.assertEqual(c.confidence_pct, -1, c.label)
 
     def test_every_guess_has_a_valid_basis_unit_and_note(self):
         for c in CANDIDATES:
@@ -67,6 +79,20 @@ class TestCandidateTable(unittest.TestCase):
         # test's readings well -- see the Guess note for the numbers.
         water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
         self.assertEqual(water.tier, HYPOTHESIS)
+
+    def test_engine_hours_candidate_is_unscored_hypothesis_with_plain_guess(self):
+        # New structural finding, 2026-08-20: a wall-clock-driven counter
+        # (~59.58s/tick, stdev 0.006s across 21 ticks) categorically unlike
+        # the frame-driven counters elsewhere in the capture. Not one of the
+        # formal tool's 6 named hypotheses, so it's unscored (-1) rather than
+        # given a numeric confidence.
+        hours = next(c for c in CANDIDATES if c.label == "Engine Hours/Minutes candidate")
+        self.assertEqual(hours.tier, HYPOTHESIS)
+        self.assertEqual(hours.confidence_pct, -1)
+        self.assertIsInstance(hours.guess, Guess)
+        self.assertEqual(hours.guess.unit, "min")
+        # anchor: raw 23 at key-on rebases to 0 minutes elapsed
+        self.assertAlmostEqual(hours.guess.apply(23), 0.0)
 
 
 class TestGuess(unittest.TestCase):

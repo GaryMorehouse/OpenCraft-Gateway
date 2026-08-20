@@ -280,6 +280,29 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         "not a physical-value candidate; included as a diagnostic curiosity",
         None,  # not a physical quantity -- no unit guess makes sense
     ),
+    ReplayCandidate(
+        "Engine Hours/Minutes candidate", CandidateKey("1A0", "02", 3, 1, ""), HYPOTHESIS, -1,
+        "docs/master-test01-analysis.md section 3 -- new structural finding, "
+        "2026-08-20, prompted by Gary asking whether engine hours should be "
+        "on the bus; not yet run through the formal Phase 2 engine",
+        Guess(
+            scale=1.0, offset=-23.0, unit="min", basis=FITTED,
+            note="Ticks up by exactly 1 count roughly every 59.58s (measured "
+            "across 21 consecutive ticks spanning the full 21.9-minute "
+            "capture: mean interval 59.576s, stdev 0.006s -- essentially zero "
+            "jitter). That precision and cadence is categorically different "
+            "from every other 'counter'-classified byte in this capture, all "
+            "of which tick once per CAN frame (thousands of times over the "
+            "session) rather than once per wall-clock minute. Starts at raw "
+            "23 (not 0) at key-on, meaning this most likely isn't 'minutes "
+            "since key-on' but a continuously-accumulating counter (e.g. a "
+            "low byte of a real engine-hours/run-time meter, or a similar "
+            "field) that was already at 23 when this capture began -- offset "
+            "here just rebases it to 'minutes elapsed since this capture "
+            "started' (0 at t~3s) for a readable gauge, not to any claimed "
+            "absolute hour-meter value.",
+        ),
+    ),
 ]
 
 # The active candidate set. When replaying a capture other than

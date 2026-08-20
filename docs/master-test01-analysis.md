@@ -151,6 +151,56 @@ physical analog signal, but it independently corroborates that those five
 timestamps are real regime changes, not artifacts of this report's
 segmentation method.
 
+**New (2026-08-20), prompted by Gary asking whether engine hours should be
+on the bus:** record `02` byte 3 ticks up by exactly 1 count roughly every
+59.58s. Measured across 21 consecutive ticks spanning the full 21.9-minute
+capture: mean interval 59.576s, stdev 0.006s -- essentially zero jitter,
+i.e. wall-clock-driven, not frame-driven. Every other byte in this capture
+that behaves like a "counter" ticks once per CAN frame (thousands of times
+over the session); this is categorically different. The byte starts at raw
+23 (not 0) at key-on and reaches 44 by the end of the capture (22 distinct
+values, rise of 21), consistent with a low byte of a continuously-running
+engine-hours/run-time meter that was already partway through a count when
+this capture began, rather than a "minutes since key-on" field starting
+fresh. Replay's guessed gauge rebases this to "minutes elapsed since this
+capture started" (raw 23 -> 0) for readability -- that offset is not a
+claim about the engine's true accumulated hours, which this single capture
+cannot determine. Not one of the toolkit's 6 formally-scored hypotheses,
+so it carries a `hypothesis` tier in replay (the evidence for the
+counter's identity is strong) but an unscored (-1) confidence rather than
+a percentage, distinguishing "found but not run through the formal scorer"
+from "scored and weak."
+
+**Also checked and ruled out during this same search (2026-08-20):**
+- **Speed/pitot**: no single byte position stands out as a speed
+  candidate. Across `170`/`1A0`/`1E0`/`1FFD4041` there are 292 byte
+  positions that stay frozen at exactly 0 for the entire capture --
+  consistent with Gary's report that the pitot sensor was physically
+  unhooked during this test (an unhooked sensor plausibly reports a fixed
+  zero/invalid value), but with 292 candidates there is no way to
+  distinguish "this one is speed" from the rest using this capture alone.
+  A follow-up capture with the pitot connected and boat underway, compared
+  against this one, would collapse that field of candidates the same way
+  the RPM step-tests did for RPM/water pressure.
+- **Fault/overheat codes**: the only known low-cardinality status bytes in
+  this capture are `1A0` record `00` bytes 1 and 2 (this section, above),
+  and they only ever step at the same five RPM-regime-change timestamps
+  already documented in section 5 -- no isolated, fault-like event
+  distinct from those five transitions. Separately, the coolant
+  temperature candidate (section 6) never exceeds ~159°F anywhere in this
+  capture, so no overheat condition is indicated as having occurred
+  *during master-test01 itself*, even though Gary has experienced overheat
+  on the boat on other occasions. If a capture exists from an actual
+  overheat event, that would be a much better place to look for a fault
+  code signature than this one.
+- **A second, oil-temperature-like signal**: searched `1E0`, `1F0`,
+  `1FFD4041`, `00000B41`, and `0000410B` for a second monotonic
+  warm-up-shaped byte (the same shape used to identify the coolant
+  candidate in section 6). Found nothing matching -- the one slow-changing
+  byte in that group (`1FFD4041` record `00` byte 3) declines rather than
+  rises and looks like an ordinary wraparound counter, not a temperature
+  curve. No oil-temperature candidate is reported.
+
 ### `1FFD4041`
 
 Still cycles through leading-byte values with no `00`/`01`/`FF` record
@@ -1015,6 +1065,7 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |
 | Trim | `1A0` rec `0B` bytes 0, 3, 6 (tentative, new) | **Very weak / exploratory** -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |
 | Engine/mode status flag | `1A0` rec `00` bytes 1-2 (not one of the named hypotheses) | Steps at the same 5 timestamps as the RPM/pressure segment boundaries -- a corroborating structural signal, not a physical-value candidate | n/a |
+| Engine Hours/Minutes | `1A0` rec `02` byte 3 (new, 2026-08-20, not one of the named hypotheses) | **Strong structural evidence** -- wall-clock-paced counter (59.576s mean interval, stdev 0.006s across 21 ticks), categorically unlike every frame-driven counter elsewhere in this capture | not yet run through the formal 6-hypothesis tool (unscored) |
 
 ## 16. Remaining unknowns
 
@@ -1066,6 +1117,18 @@ ambiguity's sharper but still-unresolved shape) that a handful of
   re-tested now that the old session's raw files no longer exist on disk
   (section 13). This is a real, noted correlation, not a demonstrated
   cause -- see section 17.
+- Speed, fault/overheat codes, and a second (oil) temperature signal were
+  all searched for on 2026-08-20 in response to Gary's question and none
+  were found in this capture (section 3) -- speed because 292 byte
+  positions are equally-plausible frozen-zero candidates with the pitot
+  unhooked, fault codes because the only known status bytes only reflect
+  the RPM-regime transitions already documented and no overheat condition
+  is indicated as occurring during this specific test, and oil temperature
+  because no second monotonic warm-up-shaped byte exists in the
+  less-examined IDs. These are honest negative results, not exhaustively
+  proven absences -- a differently-designed capture (pitot connected;
+  underway; or one taken during an actual overheat event) could still
+  surface any of the three.
 
 ## 17. Best next experiment
 

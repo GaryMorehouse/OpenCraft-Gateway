@@ -72,7 +72,7 @@ services/replay/app/publisher.py               writes to InfluxDB:
         v
 grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
                                                 "Candidate Signals (Replay)" table (raw values),
-                                                8 "(GUESS)" gauge panels (guess_value, per-candidate units)
+                                                9 "(GUESS)" gauge panels (guess_value, per-candidate units)
 ```
 
 ## `candidates.py`: what gets shown, and how
@@ -97,6 +97,17 @@ Both tiers publish the exact same kind of number -- the raw integer
 `smartcraft_toolkit.signals.read_value` reads from that byte/word, never
 converted to any physical unit. The only difference is the label and the
 `confidence_pct` tag Grafana displays alongside it.
+
+**A third case**: a candidate can also be `"hypothesis"` tier with
+`confidence_pct == -1` -- reserved for a new structural finding that isn't
+one of the formal Phase 2 tool's 6 named hypotheses at all (so it was
+never run through that tool's scorer), as opposed to having been run
+through it and scored below 50%. Engine Hours/Minutes (added 2026-08-20,
+`1A0` record `02` byte 3 -- a wall-clock-paced counter, see
+`docs/master-test01-analysis.md` section 3) is the first candidate in this
+category. `-1` is otherwise reserved for exactly this "unscored, not
+scored-and-weak" case and the test suite enforces that it's never used to
+sneak a low-confidence named hypothesis into `hypothesis` tier.
 
 **To replay a different capture**: that capture likely has its own set of
 candidate byte locations (a different ECU, a different capture session,
@@ -162,11 +173,19 @@ and is called out as such in its `note`.
 *separate* `guess_value` field (never overwriting `value`, the raw
 number), tagged with the guess's `unit` -- `apply()` works the same way
 for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
-change. Eight gauge panels in `diagnostics.json` (titled `"<Name>
+change. Nine gauge panels in `diagnostics.json` (titled `"<Name>
 (GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
 but in a single neutral blue rather than green/amber/red -- that
 traffic-light palette implies validated alarm severity these guesses
 haven't earned, so it's deliberately not reused here.
+
+**Engine Hours/Minutes** (added 2026-08-20) uses a plain `Guess`
+(`scale=1.0, offset=-23.0, unit="min"`), not an `InterpolatedGuess` -- a
+single linear count doesn't need piecewise fitting. Its anchor isn't a
+real-world reading like the others; it's structural (raw 23 = the first
+observed value = t~3s into the capture), so the gauge reads "minutes
+elapsed since this capture started," not any claimed absolute engine-hours
+value.
 
 **A guess reading "wrong" is itself useful evidence, not a failure.** An
 `UNANCHORED` (or a poorly-`FITTED`) guess reading implausibly isn't this
