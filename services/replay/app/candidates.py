@@ -145,7 +145,47 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             "the t=600s anchor) but raw had drifted to ~43818, ~24% off the "
             "~57642 seen at the *same* real 152°F reading -- real, uncaptured "
             "noise/drift in this candidate between the two fitted anchors, not "
-            "something a better-shaped curve would fix.",
+            "something a better-shaped curve would fix. Update 2026-08-20: "
+            "Gary confirmed live that this instability is real and worse than "
+            "documented -- once real coolant settles at 152°F it stays there, "
+            "but this candidate's guess drops well below that near the end of "
+            "the test. Superseded as the leading candidate by 'Coolant "
+            "Temperature candidate (steady)' below, found via the same "
+            "ground-truth correlation search that found the better Oil "
+            "Pressure candidate.",
+        ),
+    ),
+    ReplayCandidate(
+        "Coolant Temperature candidate (steady)", CandidateKey("1A0", "07", 1, 1, ""), HYPOTHESIS, 65,
+        "docs/master-test01-analysis.md section 6 -- new leading candidate, "
+        "2026-08-20, found via a systematic correlation search of every "
+        "byte in the capture against the field sheet's real coolant "
+        "readings, prompted by Gary reporting the deployed candidate drops "
+        "well below 152F near the end of the test when real coolant should "
+        "hold steady there",
+        InterpolatedGuess(
+            points=((35, 95.0), (38, 102.0), (65, 141.0), (68, 154.0), (71, 159.0)),
+            unit="°F", basis=FITTED,
+            note="A smooth, near-noise-free warm-up curve: flat at raw 35 "
+            "through engine-off (0-66s, real 95°F), then a slow, steady, "
+            "almost perfectly monotonic climb from 35 to 68 over the next "
+            "~420s -- far cleaner than the original candidate's immediate, "
+            "jagged jump-then-settle. Reaches a rock-solid plateau at raw 68 "
+            "right around t=480s, matching the field sheet's real 154°F "
+            "reading at 22:49, and HOLDS that plateau (67-68, essentially "
+            "zero jitter) for the next ~500 seconds -- exactly matching the "
+            "field sheet's flat 152-154°F readings across the whole extended "
+            "idle-and-RPM-step-test window (22:49-22:54). Ticks up one more "
+            "small step to raw 71 right around t=1010s, matching the field "
+            "sheet's final, slightly-higher 159°F reading at 22:58. Critically "
+            "-- unlike the original candidate -- it STAYS in this same warm "
+            "66-71 raw band for the entire rest of the file, through the trim "
+            "test and the second independent RPM test, all the way to the "
+            "very end (t=1300s: raw 69-70) -- never collapsing back toward "
+            "its own cold/key-on value the way the original candidate does. "
+            "The anchor-to-anchor scale isn't perfectly linear (1.4-4.3 "
+            "F/count across segments), plausibly within the field sheet's "
+            "own approximate, minute-resolution readings.",
         ),
     ),
     ReplayCandidate(
@@ -207,7 +247,8 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
             "ratio than the running-regime points do), hence the "
             "InterpolatedGuess rather than a plain Guess -- not unusual for "
             "a real sender curve, but a reason this isn't scored higher "
-            "than moderate confidence.",
+            "than moderate confidence. Gary confirmed live (2026-08-20) that "
+            "the gauge looks exactly right while watching a full replay.",
         ),
     ),
     ReplayCandidate(

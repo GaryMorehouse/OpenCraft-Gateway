@@ -80,6 +80,18 @@ class TestCandidateTable(unittest.TestCase):
         water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
         self.assertEqual(water.tier, HYPOTHESIS)
 
+    def test_coolant_steady_candidate_uses_interpolated_guess_and_stays_named(self):
+        # New leading coolant candidate, 2026-08-20: found after Gary
+        # reported the deployed candidate collapsing well below 152F near
+        # the end of the test, when real coolant should hold steady there.
+        # Named "Coolant Temperature ..." so held to the >=50% rule.
+        coolant2 = next(c for c in CANDIDATES if c.label == "Coolant Temperature candidate (steady)")
+        self.assertEqual(coolant2.tier, HYPOTHESIS)
+        self.assertGreaterEqual(coolant2.confidence_pct, 50)
+        self.assertIsInstance(coolant2.guess, InterpolatedGuess)
+        self.assertAlmostEqual(coolant2.guess.apply(35), 95.0)
+        self.assertAlmostEqual(coolant2.guess.apply(71), 159.0)
+
     def test_oil_pressure_inverse_candidate_uses_interpolated_guess_at_moderate_confidence(self):
         # New leading oil-pressure candidate, 2026-08-20: an inversely
         # correlated byte, cross-validated against a second independent

@@ -72,7 +72,7 @@ services/replay/app/publisher.py               writes to InfluxDB:
         v
 grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
                                                 "Candidate Signals (Replay)" table (raw values),
-                                                11 "(GUESS)" gauge panels (guess_value, per-candidate units)
+                                                12 "(GUESS)" gauge panels (guess_value, per-candidate units)
 ```
 
 ## `candidates.py`: what gets shown, and how
@@ -173,11 +173,21 @@ and is called out as such in its `note`.
 *separate* `guess_value` field (never overwriting `value`, the raw
 number), tagged with the guess's `unit` -- `apply()` works the same way
 for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
-change. Eleven gauge panels in `diagnostics.json` (titled `"<Name>
+change. Twelve gauge panels in `diagnostics.json` (titled `"<Name>
 (GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
 but in a single neutral blue rather than green/amber/red -- that
 traffic-light palette implies validated alarm severity these guesses
 haven't earned, so it's deliberately not reused here.
+
+**Coolant Temperature (steady)** (added 2026-08-20, `1A0` record `07`
+byte 1) uses an `InterpolatedGuess` with 5 anchors. Found via the same
+ground-truth correlation methodology that found the better Oil Pressure
+candidate, after Gary reported the original coolant gauge dropping well
+below 152°F near the end of a replay when real coolant should hold
+steady. This candidate matches every field-sheet anchor with far less
+noise than the original, and -- unlike it -- stays in a physically
+sensible warm band for the rest of the file instead of collapsing. See
+`docs/master-test01-analysis.md` section 6.
 
 **Engine Hours/Minutes** (added 2026-08-20) uses a plain `Guess`
 (`scale=1.0, offset=-23.0, unit="min"`), not an `InterpolatedGuess` -- a

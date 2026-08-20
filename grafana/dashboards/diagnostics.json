@@ -973,6 +973,57 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 20,
+      "type": "gauge",
+      "title": "Coolant Temperature (Steady, GUESS)",
+      "description": "New leading coolant candidate, found 2026-08-20 (1A0 rec 07 byte 1) after Gary reported the original 'Coolant Temperature (GUESS)' gauge dropping well below 152F near the end of the test, when real coolant should hold steady there. Near-noise-free warm-up curve matching every field-sheet anchor (95F engine-off, climbing to a flat 154F plateau by t~480s, holding through the whole idle/RPM-step window, ticking up to 159F at t~1010s) -- and unlike the original candidate, stays in this same warm band for the entire rest of the file instead of collapsing. See docs/master-test01-analysis.md section 6.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 45
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Coolant Temperature candidate (steady)\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "fahrenheit",
+          "min": 60,
+          "max": 220,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

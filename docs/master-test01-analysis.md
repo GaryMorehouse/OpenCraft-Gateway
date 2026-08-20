@@ -455,6 +455,64 @@ each held for a clearly logged, multi-second duration so a scale factor
 
 ## 6. Coolant-temperature hypothesis
 
+**Update (2026-08-20): a much stronger candidate found.** Gary reported,
+watching a live replay, that this candidate's instability wasn't just
+"unexplained drift" as previously documented -- it visibly drops well
+below 152°F near the end of the test, when real coolant should be holding
+steady there. Checked directly against the raw log: the guessed value
+holds a real 150-152°F plateau from t~480s through t~1000s, then
+declines substantially and unevenly for the rest of the file --
+20s-window means fall to 127-141°F by t=1040-1080s, dip as low as
+~104-119°F in several later windows, with only partial, temporary
+recoveries. This is a real decline in the raw data (confirmed directly,
+not a display/rolling-mean artifact), not something the field sheet can
+explain either way (its last coolant reading is 159°F at 22:58, right
+around when this decline starts) -- but nothing about the test (RPM stays
+active through a whole second RPM run afterward) gives a physical reason
+for coolant to actually drop that much. That prompted the same
+ground-truth correlation search that found the better Oil Pressure
+candidate, applied to coolant instead:
+
+**CAN ID**: `1A0`
+**Bytes**: record `07`, byte 1.
+**Observed behavior**: an extraordinarily clean, almost noise-free curve.
+Flat at raw 35 through the entire engine-off period (t=0-66s), then a
+slow, smooth, nearly monotonic climb (35 -> 68) over the next ~420
+seconds -- nothing like the original candidate's immediate, jagged jump.
+Reaches a rock-solid plateau at raw 68 right around t=480s and holds it
+(67-68, essentially zero jitter) for the next ~500 seconds. Ticks up one
+more small step to raw 71 right around t=1010s. **Unlike the original
+candidate, it then stays in this same warm 66-71 band for the entire rest
+of the file** -- through the trim test and the whole second, independent
+RPM test, all the way to the very end (t=1300s: raw 69-70) -- never
+collapsing back toward its cold/key-on value.
+**Evidence FOR**: matches the field sheet at every anchor -- flat 35 at
+95°F (engine off), climbing through 38 at 102°F (22:43) and 65 at 141°F
+(22:47), reaching a flat plateau at 68 that holds through 154°F (22:49)
+and the entire idle/RPM-step-test window (22:49-22:54), then a small step
+up to 71 matching 159°F (22:58). Far less noisy at every single anchor
+than the original candidate ever manages. Most importantly, it directly
+answers Gary's report: it does NOT drop near the end of the test, staying
+in a physically sensible warm band for the rest of the file where the
+original candidate collapses.
+**Evidence AGAINST**: the anchor-to-anchor scale isn't perfectly linear
+(1.4-4.3 °F per raw count across different segments) -- plausibly within
+the field sheet's own approximate, minute-resolution readings, but not
+independently confirmed to be a clean physical scale. No live-observed
+real-world reading exists to confirm the post-22:58 plateau specifically
+(the field sheet has no coolant entries after 159°F) -- the claim that it
+*should* stay warm is a physical inference (the engine keeps running,
+including through a full second RPM test), not a logged fact.
+**Confidence: moderate-to-good** -- see `candidates.py`'s `Guess.note` for
+the exact numbers.
+**Best experiment to distinguish it further**: a longer single-condition
+capture (steady idle held for several minutes, well past this test's
+duration) would show directly whether real coolant genuinely stays flat
+that long, giving a cleaner late-session ground truth than this test's
+sheet (which stops recording coolant after the RPM step test).
+
+### Original leading candidate (superseded above, kept for the record)
+
 **CAN ID**: `170`
 **Bytes**: record `03`, bytes 0-1 (LE).
 **Observed behavior**: flat at `5,126` for t=0-64s (key-ON, engine OFF),
@@ -481,7 +539,10 @@ truth to check it against (the field sheet's last coolant entry is
 then-plateau model.
 **Confidence: moderate-to-good** for the early rise and plateau timing
 (now corroborated against real gauge data); unresolved for the
-late-session behavior.
+late-session behavior. **Update (2026-08-20)**: Gary confirmed live that
+this late-session issue is real and worse than documented -- superseded
+as the leading candidate by `1A0` record `07` byte 1 above, which does
+not show this collapse.
 **Competing hypothesis**: none strong -- the early-rise/plateau shape and
 timing match is distinctive enough that this is this report's most
 confidently-supported hypothesis (see section 15), though the late-session
@@ -1005,6 +1066,32 @@ otherwise idle) would confirm both the direction assignment and rule out
 any remaining chance that this byte's alternation is coincidental rather
 than direction-encoding.
 
+**Searched and not found (2026-08-20): a continuous trim position
+signal.** Gary confirmed the direction candidate fires at the right time,
+but expected a real position sender to look different -- a gradual,
+multi-step stream (e.g. 0/10, 1/10, 2/10... as the ram physically travels
+from full down to full up), not a byte that snaps straight between two
+states. That's a fair expectation, and checking it directly against the
+raw data confirms the byte above does NOT do this -- during each ~8s
+pulse it holds flat at a single raw value (1 or 2) the whole time, never
+stepping through intermediates, reinforcing that it's a discrete
+direction/active flag rather than a position sender. A systematic search
+for a genuine multi-step candidate (any byte taking many distinct values
+specifically inside the confirmed t=1033-1110s window, while staying
+comparatively quiet outside it) turned up one superficially promising
+lead, `1FFD4041` byte 2, but it didn't hold up: checked in detail, it's
+just cycling through the same small set of values (`0`/`60`/`127`/`232`/
+`255`) it also cycles through everywhere else in the file, in a
+repeating multiplexed rotation unrelated to trim timing -- the same kind
+of false lead the oil-pressure search hit before finding its real
+candidate (section 7), except this one didn't pan out. **No continuous
+trim position candidate was found in this capture.** This bus may only
+expose trim as a discrete motor-run/direction status here, or a position
+sender exists but wasn't distinguishable from noise/multiplexing using
+this method -- an isolated single-movement test (the same experiment
+proposed above) would show a real position sender much more clearly,
+embedded in far less competing signal traffic than this capture has.
+
 ### Original leading candidate (superseded above, kept for the record)
 
 **CAN ID**: `1A0`
@@ -1222,7 +1309,8 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 
 | Signal | Leading candidate | This report | Phase 2 tool (post-update) |
 |---|---|---|---|
-| Coolant Temperature | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good** -- real early-rise/plateau shape and timing match the field sheet; late-session instability unexplained | 55% |
+| Coolant Temperature | `1A0` rec `07` byte 1 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- near-noise-free warm-up curve matching every field-sheet anchor, and (unlike the original candidate) stays in a physically sensible warm band through the entire rest of the file instead of collapsing | not one of the tool's byte positions tested (65%, this report's own score) |
+| Coolant Temperature (original candidate) | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good**, superseded above -- real early-rise/plateau shape and timing match the field sheet, but drops well below 152°F near the end of the test (confirmed live, 2026-08-20), which real coolant does not do | 55% |
 | Oil Pressure | `170` rec `00` byte 3 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- inversely tracks real oil PSI at every idle/900/1380/2570 anchor, cleaner (fewer distinct values) than any prior candidate, cross-validated against a second independent RPM test at the end of the file (identical raw minimum at RPM peak, identical baseline on return to idle) | not one of the tool's byte positions tested (60%, this report's own score) |
 | Oil Pressure (original candidate) | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Weak**, superseded above -- contradicts the field sheet's flat-idle reading AND fails to rise at all at a confirmed 2570 RPM / 65.9 PSI peak; no consistent relationship to real oil pressure found anywhere. Replay tier moved hypothesis->raw | 80% (tool doesn't see any of this) |
 | RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate-to-good** (2026-08-20) -- immediate rough-transient onset, idle-stability, jaggedness matching the overshoot/correct throttle technique, plus 3 real RPM anchors (900/1380/2570) now fit via a piecewise curve instead of one bad line | 65% (top candidate) |
@@ -1264,13 +1352,23 @@ ambiguity's sharper but still-unresolved shape) that a handful of
   jump implies either a genuinely non-linear sender curve or two
   different regimes glued together, and the sender-disconnect experiment
   (section 17) hasn't been run against it yet.
-- The coolant candidate's late-session instability is unexplained, and
-  now confirmed to start earlier than previously thought: even during the
-  RPM-step window (t~925-953s), the same real 152°F reading corresponded
-  to a raw value ~24% different from the one seen for that same 152°F
-  reading at t=600s (section 6, 2026-08-20 update) -- there is real,
+- The original coolant candidate's late-session instability is
+  unexplained, and confirmed to start earlier than previously thought:
+  even during the RPM-step window (t~925-953s), the same real 152°F
+  reading corresponded to a raw value ~24% different from the one seen
+  for that same 152°F reading at t=600s (section 6) -- there is real,
   unexplained drift in this candidate between its two fitted anchors, not
-  just after them.
+  just after them. A much stronger replacement candidate (`1A0` rec `07`
+  byte 1) was found on 2026-08-20 and is now the leading coolant
+  candidate -- see section 6. It isn't fully confirmed either: no
+  field-sheet reading exists past 22:58 to verify its claimed post-test
+  warm plateau, and its scale isn't perfectly linear across all segments.
+- No continuous trim position signal was found in this capture, despite a
+  systematic search prompted by Gary's expectation of a gradual
+  multi-step data stream during each trim movement (section 12,
+  2026-08-20) -- the trim direction candidate holds flat during each
+  pulse rather than ramping, and the one superficially promising
+  alternative found turned out to be an unrelated multiplexed rotation.
 - The trim direction candidate (`170` rec `03` byte 2, 2026-08-20) is
   strong on timing/count/order but still doesn't confirm which raw value
   (1 or 2) is physically Up vs Down -- that assignment is inferred from
