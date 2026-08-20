@@ -465,7 +465,7 @@
       "id": 10,
       "type": "gauge",
       "title": "Coolant Temperature (GUESS)",
-      "description": "GUESS, not a decode. Two-point fit: raw 5126 -> 95°F at key-on, raw 57642 -> 152°F at t=600s (section 6). Late-session instability in the report will show up as an erratic reading here too.",
+      "description": "GUESS, not a decode. Two-point fit: raw 5126 -> 95°F at key-on, raw 57642 -> 152°F at t=600s (section 6). Late-session instability in the report will show up as an erratic reading here too. Gauge shows a 10s rolling mean (not the single latest sample) since this candidate visibly jumps frame to frame.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -478,7 +478,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Coolant Temperature candidate\")\n  |> last()",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -10s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Coolant Temperature candidate\")\n  |> mean()",
           "refId": "A"
         }
       ],
