@@ -513,57 +513,6 @@
       }
     },
     {
-      "id": 11,
-      "type": "gauge",
-      "title": "Oil Pressure (GUESS)",
-      "description": "Fitted from a single point (raw~84 at t=120s -> real 50.3 PSI) -- kept only because no better fit exists. Two rounds of live validation (2026-08-19) made this candidate's standing worse: it declines ~55% during idle while real oil pressure stays flat; and at the settled 2570 RPM plateau, where real oil pressure peaks at 65.9 PSI (the highest reading on the whole field sheet), this candidate's raw value is essentially the same as its own idle raw value -- it fails to rise at all across the confirmed RPM range. Tier downgraded from hypothesis to raw as a result. Treat this gauge as illustrative at best. Gauge shows a 20s rolling mean since this candidate visibly jumps frame to frame.",
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 12,
-        "y": 29
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb"
-      },
-      "targets": [
-        {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -20s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Oil Pressure candidate\")\n  |> mean()",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": false
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "pressurepsi",
-          "min": 0,
-          "max": 90,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "value": null,
-                "color": "#5794F2"
-              }
-            ]
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 12,
       "type": "gauge",
       "title": "Raw Water Pressure (GUESS)",
@@ -571,7 +520,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 18,
+        "x": 12,
         "y": 29
       },
       "datasource": {
@@ -622,8 +571,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 0,
-        "y": 37
+        "x": 18,
+        "y": 29
       },
       "datasource": {
         "type": "influxdb",
@@ -673,7 +622,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 6,
+        "x": 0,
         "y": 37
       },
       "datasource": {
@@ -724,7 +673,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 12,
+        "x": 6,
         "y": 37
       },
       "datasource": {
@@ -768,58 +717,6 @@
       }
     },
     {
-      "id": 16,
-      "type": "gauge",
-      "title": "Trim (GUESS)",
-      "description": "Inverted 'byte range = 0-100%' guess, recentered so the observed ~239-240 raw 'down' baseline reads ~0% -- confirmed by both the field sheet (trim starts fully DOWN at key-on) and Gary's live observation (2026-08-19, 25% into a replay, expected ~0%). Direction is still a guess; magnitude during the trim-cycle window is not confirmed.",
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 37
-      },
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb"
-      },
-      "targets": [
-        {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Trim candidate\")\n  |> last()",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": false
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "value": null,
-                "color": "#5794F2"
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 17,
       "type": "gauge",
       "title": "Engine Hours/Minutes (GUESS)",
@@ -827,8 +724,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 0,
-        "y": 45
+        "x": 12,
+        "y": 37
       },
       "datasource": {
         "type": "influxdb",
@@ -879,8 +776,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 6,
-        "y": 45
+        "x": 18,
+        "y": 37
       },
       "datasource": {
         "type": "influxdb",
@@ -931,7 +828,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 12,
+        "x": 0,
         "y": 45
       },
       "datasource": {
@@ -982,7 +879,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 18,
+        "x": 6,
         "y": 45
       },
       "datasource": {
@@ -1033,8 +930,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 0,
-        "y": 53
+        "x": 12,
+        "y": 45
       },
       "datasource": {
         "type": "influxdb",
