@@ -92,6 +92,20 @@ class TestCandidateTable(unittest.TestCase):
         self.assertAlmostEqual(coolant2.guess.apply(35), 95.0)
         self.assertAlmostEqual(coolant2.guess.apply(71), 159.0)
 
+    def test_water_pressure_rpm_proxy_shares_water_candidates_key_and_is_unscored(self):
+        # Derived estimate, 2026-08-21: same raw byte as Raw Water Pressure,
+        # just mapped to RPM using the same real-world anchor moments.
+        # Doesn't start with any of the 6 named-hypothesis prefixes, so
+        # unscored (-1) is correct even though its label mentions RPM.
+        proxy = next(c for c in CANDIDATES if c.label == "Water-Pressure RPM Proxy candidate")
+        water = next(c for c in CANDIDATES if c.label == "Raw Water Pressure candidate")
+        self.assertEqual(proxy.key, water.key)
+        self.assertEqual(proxy.tier, HYPOTHESIS)
+        self.assertEqual(proxy.confidence_pct, -1)
+        self.assertIsInstance(proxy.guess, InterpolatedGuess)
+        self.assertEqual(proxy.guess.unit, "RPM")
+        self.assertAlmostEqual(proxy.guess.apply(45385), 2570)
+
     def test_oil_pressure_inverse_candidate_uses_interpolated_guess_at_moderate_confidence(self):
         # New leading oil-pressure candidate, 2026-08-20: an inversely
         # correlated byte, cross-validated against a second independent

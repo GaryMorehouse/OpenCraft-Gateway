@@ -171,6 +171,29 @@ counter's identity is strong) but an unscored (-1) confidence rather than
 a percentage, distinguishing "found but not run through the formal scorer"
 from "scored and weak."
 
+**Cross-validated on a second, independent capture (2026-08-21,
+`drive03.log`, Gary's next drive).** This capture has no real timestamps
+at all (plain `candump can0`, not `-L` -- see `docs/replay.md`), which
+made this counter unusually useful: it still ticks up perfectly cleanly
+across the whole ~550,000-frame file (raw 78 -> 139, 62 transitions, zero
+skips or resets), and the frame-count gap between every single tick is
+9008-9048 frames -- under 0.5% spread, for the *entire* ~61-minute drive
+regardless of engine state. That consistency is itself strong evidence
+this is a real, stable hardware/RTC-driven clock rather than anything
+tied to one session, and it was used to build a proper real-elapsed-time
+calibration for this otherwise-timestamp-less file (each tick assumed
+59.576s apart, from this capture's own measured mean above), which
+every other finding on `drive03.log` in this document relies on. Gary
+separately reported the engine's real cumulative-hours meter read ~633
+hours at the start of this drive; under the hypothesis that this byte is
+literally `(total real minutes) mod 256`, 633.0 hours predicts raw 92,
+while the observed start-of-file raw is 78 -- consistent with ~632.77
+hours, about 14 minutes off a literal 633.0. Given "633 hours" was a
+rounded verbal reading, this is broadly consistent, not an exact
+confirmation, and doesn't independently verify the mod-256-total-minutes
+model specifically (only that the byte keeps behaving like *a* very
+regular counter).
+
 **Also checked and ruled out during this same search (2026-08-20):**
 - **Speed/pitot**: no single byte position stands out as a speed
   candidate. Across `170`/`1A0`/`1E0`/`1FFD4041` there are 292 byte
@@ -452,6 +475,31 @@ longer a strong competitor.
 (not just event timing) alongside a capture, ideally with the RPM steps
 each held for a clearly logged, multi-second duration so a scale factor
 (if any) can be fit directly against this byte.
+
+**Update (2026-08-21): this candidate appears to break down well above
+2570 RPM.** `drive03.log` (Gary's next drive, no real timestamps -- see
+section 3's engine-hours-based time calibration) describes varying RPM
+several times with a peak around 3700, mostly running 550-1000 RPM. This
+candidate's raw value, calibrated the same way as here, never implies
+more than ~890 RPM anywhere across the entire ~61-minute file -- it
+mostly sits around 550-700 RPM-equivalent with two brief dips to
+~225-300, and its single highest value anywhere in 550,000+ frames still
+only implies ~890 RPM. A systematic search for a genuine engine-off
+signature and for an alternate byte with a clean, sustained high plateau
+both came up empty (checked every byte and 16-bit word combination
+across `170`/`1A0`/`1E0`/`1F0`) -- nothing in the raw log matches a
+sustained on-plane run the way this candidate's own calibration would
+require it to. Since this candidate's fit was only ever confirmed up to
+a real 2570 RPM anchor (section 4), and its InterpolatedGuess already
+flagged extrapolation past that point as "the least trustworthy part of
+this guess," the most likely explanation is that whatever relationship
+holds between this byte and true RPM below ~1400 RPM does not continue
+cleanly at higher engine speeds -- not that drive03 somehow avoided ever
+reaching them. See section 8 for an alternate RPM estimate (via water
+pressure) that fits drive03's described shape much better.
+**Confidence for the extrapolated (>2570 RPM) portion of this candidate
+downgraded to weak** as a result; the confirmed idle-to-2570-RPM range
+from master-test01 is unaffected by this finding.
 
 ## 6. Coolant-temperature hypothesis
 
@@ -841,6 +889,28 @@ target (a governor/cruise-control-style throttle, or a much more careful
 manual hold), so the true in-between RPM/oil/water waveform is known and
 this candidate's shape can be checked against it directly rather than
 inferred.
+
+**Derived (2026-08-21): using this candidate as an RPM proxy on
+drive03.log.** Since real RPM and real water PSI were both logged at the
+exact same moments during the RPM step test above, this candidate's raw
+value can be mapped directly to RPM instead of PSI using those same
+anchors -- Gary's own proposed technique, motivated by the RPM candidate
+(section 5) apparently breaking down on `drive03.log`. Applied to that
+capture, this proxy tells a much more plausible story: two clear
+excursions (raw climbing to ~47872 and ~47104, implying ~3540-3940 and
+~2841-3241 RPM) separated by a long, stable low-speed plateau
+(raw~31232-34048, implying ~516-563 RPM) -- close to Gary's own account
+of "varied several times, peak ~3700, a lot of 550-1000 time moving
+slowly." Implemented as "Water-Pressure RPM Proxy candidate" in
+`candidates.py` (same raw byte and `CandidateKey` as this candidate,
+just a second `Guess`). This is explicitly doubly speculative: it
+extrapolates both the RPM-to-PSI relationship (confirmed only to 2570
+RPM) and this candidate's own already-extrapolated raw range (drive03
+reaches raw~48896, past even this candidate's last confirmed anchor of
+45385) on a capture that may not even be the same boat/engine as
+master-test01 -- not a confirmed reading, but a substantially better fit
+to the described drive than the direct RPM candidate manages on the same
+file.
 
 ## 9. Fuel hypothesis
 
@@ -1365,8 +1435,8 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | Coolant Temperature (original candidate) | `170` rec `03` bytes 0-1 (LE) | **Moderate-to-good**, superseded above -- real early-rise/plateau shape and timing match the field sheet, but drops well below 152°F near the end of the test (confirmed live, 2026-08-20), which real coolant does not do | 55% |
 | Oil Pressure | `170` rec `00` byte 3 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- inversely tracks real oil PSI at every idle/900/1380/2570 anchor, cleaner (fewer distinct values) than any prior candidate, cross-validated against a second independent RPM test at the end of the file (identical raw minimum at RPM peak, identical baseline on return to idle) | not one of the tool's byte positions tested (60%, this report's own score) |
 | Oil Pressure (original candidate) | `170` rec `00` byte 1 / bytes 0-1 (LE) | **Weak**, superseded above -- contradicts the field sheet's flat-idle reading AND fails to rise at all at a confirmed 2570 RPM / 65.9 PSI peak; no consistent relationship to real oil pressure found anywhere. Replay tier moved hypothesis->raw | 80% (tool doesn't see any of this) |
-| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate-to-good** (2026-08-20) -- immediate rough-transient onset, idle-stability, jaggedness matching the overshoot/correct throttle technique, plus 3 real RPM anchors (900/1380/2570) now fit via a piecewise curve instead of one bad line | 65% (top candidate) |
-| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Moderate-to-good** (upgraded, 2026-08-20) -- a 5-point piecewise fit (physically consistent with a centrifugal-pump pressure curve) was cross-validated against an independent second RPM test to within 1-11%; fuel-consumption-rate was proposed as an alternative and directly ruled out. Replay tier moved raw->hypothesis | 65% (RPM top-3) / 60% (RWP top-3, tool score unchanged -- doesn't see any of this either) |
+| RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate-to-good below ~2570 RPM** (2026-08-20); **weak above it** (downgraded 2026-08-21) -- confirmed idle-through-2570-RPM shape/anchors hold up, but never implies more than ~890 RPM anywhere in a second capture (drive03.log) Gary describes reaching ~3700 RPM -- extrapolation past the confirmed range appears unreliable | 65% (top candidate) |
+| Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Moderate-to-good** (upgraded, 2026-08-20) -- a 5-point piecewise fit (physically consistent with a centrifugal-pump pressure curve) was cross-validated against an independent second RPM test to within 1-11%; fuel-consumption-rate was proposed as an alternative and directly ruled out. Replay tier moved raw->hypothesis. Same byte reused as an RPM proxy (2026-08-21, section 8) -- fits drive03.log's described RPM shape much better than the RPM candidate itself does on that file, though doubly extrapolated and unconfirmed | 65% (RPM top-3) / 60% (RWP top-3, tool score unchanged -- doesn't see any of this either) |
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
 | Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |

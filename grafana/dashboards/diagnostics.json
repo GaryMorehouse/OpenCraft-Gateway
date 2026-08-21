@@ -1011,6 +1011,57 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 22,
+      "type": "gauge",
+      "title": "RPM (Water-Pressure Proxy, DERIVED)",
+      "description": "Derived estimate, 2026-08-21 -- same raw byte as Raw Water Pressure, mapped to RPM using the same real-world anchor moments from master-test01's RPM step test instead of PSI. Motivated by drive03.log: the direct RPM candidate never exceeds ~890 RPM anywhere in that capture, contradicting Gary's account of varying RPM with a peak around 3700. This proxy tells a very different story on the same file -- two clear excursions implying ~2800-3900 RPM separated by a long, stable low-speed plateau (~520-560 RPM) -- a much closer match. Doubly speculative: extrapolates both the RPM step test's anchors (confirmed only to 2570 RPM) AND the water-pressure candidate's own already-extrapolated shape, and assumes drive03 is the same boat/engine as master-test01. See docs/master-test01-analysis.md section 5.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 45
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "targets": [
+        {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"can_replay\" and r._field == \"guess_value\" and r.hypothesis == \"Water-Pressure RPM Proxy candidate\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rotrpm",
+          "min": 0,
+          "max": 4000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "#5794F2"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

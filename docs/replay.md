@@ -75,7 +75,7 @@ services/replay/app/publisher.py               writes to InfluxDB:
         v
 grafana/dashboards/diagnostics.json            "REPLAY MODE" banner, "Replay Status" table,
                                                 "Candidate Signals (Replay)" table (raw values),
-                                                13 "(GUESS)"/"(DERIVED)" gauge panels (guess_value,
+                                                14 "(GUESS)"/"(DERIVED)" gauge panels (guess_value,
                                                 per-candidate units)
 ```
 
@@ -207,7 +207,7 @@ and is called out as such in its `note`.
 *separate* `guess_value` field (never overwriting `value`, the raw
 number), tagged with the guess's `unit` -- `apply()` works the same way
 for both `Guess` and `InterpolatedGuess`, so nothing downstream needed to
-change. Thirteen gauge panels in `diagnostics.json` (titled `"<Name>
+change. Fourteen gauge panels in `diagnostics.json` (titled `"<Name>
 (GUESS)"`) read `guess_value`, styled like Engine Overview's real gauges
 but in a single neutral blue rather than green/amber/red -- that
 traffic-light palette implies validated alarm severity these guesses
@@ -273,6 +273,24 @@ having operated the trim switch during this test: most likely a trim
 Up/Down button indicator (operator switch position), not raw
 motor-movement telemetry -- the panel is titled "Trim Up/Down Indicator
 (GUESS)" accordingly.
+
+**Water-Pressure RPM Proxy** (added 2026-08-21) is a second `Guess` on
+the *same* raw byte as Raw Water Pressure -- `CandidateKey("1A0", "05",
+1, 2, "LE")`, unchanged -- just interpreted against RPM instead of PSI,
+using the exact same 5 anchor points (raw value at each real moment
+confirmed during master-test01's RPM step test), since real RPM and real
+PSI were both logged at those same moments. Motivated by `drive03.log`
+(2026-08-21, Gary's second capture, no real timestamps -- see below): the
+direct RPM candidate never exceeds ~890 RPM anywhere in that file,
+flatly contradicting Gary's account of varying RPM with a peak around
+3700. This proxy tells a very different, much better-matching story on
+the same file -- see `docs/master-test01-analysis.md` section 5. It's
+explicitly a doubly-speculative extrapolation (both the RPM-to-water-PSI
+relationship and the water candidate's own raw range are extrapolated
+well past their confirmed anchors on this new capture) and assumes
+drive03 is the same boat/engine as master-test01 -- not a confirmed
+reading, an alternate hypothesis worth having on the dashboard alongside
+the direct candidate it disagrees with.
 
 **A guess reading "wrong" is itself useful evidence, not a failure.** An
 `UNANCHORED` (or a poorly-`FITTED`) guess reading implausibly isn't this

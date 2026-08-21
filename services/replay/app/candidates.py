@@ -294,6 +294,40 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         ),
     ),
     ReplayCandidate(
+        "Water-Pressure RPM Proxy candidate", CandidateKey("1A0", "05", 1, 2, "LE"), HYPOTHESIS, -1,
+        "docs/master-test01-analysis.md section 5 -- derived estimate, "
+        "2026-08-21, Gary's own proposed technique on a new capture "
+        "(drive03.log): since raw water pressure and real RPM were both "
+        "confirmed at the SAME real moments during master-test01's RPM step "
+        "test, map raw water pressure directly to RPM using those shared "
+        "anchors, bypassing the RPM candidate entirely",
+        InterpolatedGuess(
+            points=((256, 0), (34160, 565), (38905, 900), (42335, 1380), (45385, 2570)),
+            unit="RPM", basis=FITTED,
+            note="Same raw byte and same 5 anchor points as the Raw Water "
+            "Pressure candidate above, just mapped to the real RPM value "
+            "confirmed at each of those same moments instead of real PSI. "
+            "Motivated by drive03.log (2026-08-21): the direct RPM candidate "
+            "never exceeds ~890 RPM anywhere in that ~61-minute capture, "
+            "flatly contradicting Gary's account of varying RPM several "
+            "times with a peak around 3700. This proxy tells a very "
+            "different story on the same file: two clear excursions "
+            "(raw climbing to ~47872 and ~47104, implying ~3540-3940 and "
+            "~2841-3241 RPM) separated by a long, stable low-speed plateau "
+            "(raw~31232-34048, ~516-563 RPM) -- a much closer match to "
+            "'varied several times, peak ~3700, a lot of 550-1000 time "
+            "moving slowly.' Treat this as doubly speculative: it "
+            "extrapolates the RPM step test's confirmed anchors (which "
+            "only went up to 2570 RPM) using the water-pressure "
+            "candidate's own already-extrapolated accelerating-slope "
+            "shape, on a raw range (drive03 reaches raw~48896) beyond "
+            "even that candidate's own last confirmed anchor (45385). "
+            "Also assumes drive03 is the same boat/engine/pump as "
+            "master-test01, which the RPM candidate's own apparent "
+            "mismatch on this file gives some reason to question.",
+        ),
+    ),
+    ReplayCandidate(
         "Fuel Level candidate", CandidateKey("170", "00", 2, 1, ""), RAW, 40,
         "docs/master-test01-analysis.md section 9 (indistinguishable from Depth "
         "with this dataset)",
