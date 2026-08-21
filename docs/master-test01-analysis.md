@@ -1000,6 +1000,23 @@ senders do: real depth is unaffected, and whichever byte snaps to a
 fixed fault value is very likely this signal, which by elimination also
 helps settle fuel (section 9).
 
+**Update (2026-08-21): the "genuinely different water depths" experiment
+above happened.** Gary reported being in over 100ft of water at times
+during `drive03.log`, and this candidate's gauge never moved. Checked
+directly: its raw value stays within a 255-count band (29440-29695) for
+the *entire* drive -- a 0.41ft swing under its own fitted scale. Reaching
+100ft under that same scale would require raw~86378, roughly 3x higher
+than anything anywhere in the file. This isn't just an imprecise
+reading; the byte is effectively frozen regardless of real depth
+changing by an order of magnitude. Combined with this candidate's
+already-weak standing (fit from a 125-raw-count range on two close,
+shallow-water points), this is a real, direct failure of the exact test
+this section already called for -- not merely "still unconfirmed."
+**Confidence downgraded to very weak** -- this byte is very likely not
+depth. Fuel (section 9), which shares the same three-candidate ambiguity
+and the same near-constant behavior in master-test01, hasn't been tested
+this way yet and remains merely unconfirmed rather than failed.
+
 ## 11. Battery-voltage hypothesis
 
 **CAN ID**: `00000B41`
@@ -1438,7 +1455,7 @@ ambiguity's sharper but still-unresolved shape) that a handful of
 | RPM | `170` rec `01` bytes 4-5 (BE) | **Moderate-to-good below ~2570 RPM** (2026-08-20); **weak above it** (downgraded 2026-08-21) -- confirmed idle-through-2570-RPM shape/anchors hold up, but never implies more than ~890 RPM anywhere in a second capture (drive03.log) Gary describes reaching ~3700 RPM -- extrapolation past the confirmed range appears unreliable | 65% (top candidate) |
 | Raw Water Pressure | `1A0` rec `05` bytes 1-2 (LE) | **Moderate-to-good** (upgraded, 2026-08-20) -- a 5-point piecewise fit (physically consistent with a centrifugal-pump pressure curve) was cross-validated against an independent second RPM test to within 1-11%; fuel-consumption-rate was proposed as an alternative and directly ruled out. Replay tier moved raw->hypothesis. Same byte reused as an RPM proxy (2026-08-21, section 8) -- fits drive03.log's described RPM shape much better than the RPM candidate itself does on that file, though doubly extrapolated and unconfirmed | 65% (RPM top-3) / 60% (RWP top-3, tool score unchanged -- doesn't see any of this either) |
 | Fuel | `170` rec `00` byte 2, rec `01` bytes 1-2, rec `02` bytes 0-1 | **Weak** -- near-constant as expected, but none read near their own max despite fuel actually being ~100% | 40% each |
-| Depth | Same three as Fuel | **Weak**, indistinguishable from Fuel | 40% each |
+| Depth | `170` rec `01` bytes 1-2 (LE) | **Very weak** (downgraded, 2026-08-21) -- tested against a genuine 100+ft depth change (drive03.log) and failed outright: raw stays within a 255-count band the whole drive, ~3x too little range to reach 100ft under its own fitted scale | 40% (tool doesn't see this either) |
 | Battery Voltage | `00000B41` rec `81`/`83` area | **Weak** -- small-sample caveat, shore power confounds the expected alternator step, and live replay validation (2026-08-20) caught record `83` cleanly square-waving between two fixed values on a strict clock, which a shore-powered battery shouldn't do (section 11) | 55% |
 | Trim Direction (likely Up/Down button indicator, per Gary) | `170` rec `03` byte 2 (new leading candidate, 2026-08-20) | **Moderate-to-good** -- exactly 6 alternating pulses, matching the field sheet's 6-movement count and Up/Down/Up/Down/Up/Down order exactly, isolated to one ~77s span with zero occurrences anywhere else in the 22-minute file; discrete flag, not a continuous position (confirmed) | not one of the 6 named hypotheses (unscored) |
 | Trim (original candidate) | `1A0` rec `0B` bytes 0, 3, 6 | **Very weak / exploratory**, superseded above -- 2 of 7 burst clusters land near the documented trim window, 5 don't | not yet testable (unscored) |

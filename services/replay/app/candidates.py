@@ -343,15 +343,21 @@ MASTER_TEST01_CANDIDATES: list[ReplayCandidate] = [
         ),
     ),
     ReplayCandidate(
-        "Depth candidate", CandidateKey("170", "01", 1, 2, "LE"), RAW, 40,
-        "docs/master-test01-analysis.md section 10 (indistinguishable from Fuel "
-        "with this dataset)",
+        "Depth candidate", CandidateKey("170", "01", 1, 2, "LE"), RAW, 15,
+        "docs/master-test01-analysis.md section 10 -- downgraded to very weak "
+        "2026-08-21 after failing a genuine deep-water test on drive03.log",
         Guess(
             scale=0.0016, offset=-38.204, unit="ft", basis=FITTED,
             note="Two-point fit: raw 29440 -> 8.9ft at key-on (field sheet), "
             "raw 29565 -> 9.1ft at 25% into a replay Gary watched live "
             "(2026-08-19, t~328s). Small raw range behind this fit (125 counts) "
-            "-- treat the slope as a rough estimate, not a calibrated scale.",
+            "-- treat the slope as a rough estimate, not a calibrated scale. "
+            "Update 2026-08-21: tested against a real 100+ft depth change on "
+            "drive03.log and failed outright -- raw stays within a 255-count "
+            "band (29440-29695) for the entire drive, only a 0.41ft swing "
+            "under this scale, when reaching 100ft would need raw~86378 "
+            "(~3x the highest value seen anywhere in that file). This byte "
+            "is very likely not depth.",
         ),
     ),
     ReplayCandidate(
