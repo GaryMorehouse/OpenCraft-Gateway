@@ -68,5 +68,19 @@ class TestPublishCandidates(unittest.TestCase):
         self.assertNotIn("unit=", line)
 
 
+class TestPublishStatus(unittest.TestCase):
+    def test_timing_mode_defaults_to_real(self):
+        pub = RecordingPublisher(make_config())
+        pub.publish_status("master-test01", "playing", 0.0, 100.0, "1")
+        line = pub.written[0].to_line_protocol()
+        self.assertIn('timing_mode="real"', line)
+
+    def test_timing_mode_can_be_set_to_synthetic(self):
+        pub = RecordingPublisher(make_config())
+        pub.publish_status("drive03", "playing", 0.0, 100.0, "1", timing_mode="synthetic")
+        line = pub.written[0].to_line_protocol()
+        self.assertIn('timing_mode="synthetic"', line)
+
+
 if __name__ == "__main__":
     unittest.main()

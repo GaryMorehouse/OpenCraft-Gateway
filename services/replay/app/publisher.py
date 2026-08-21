@@ -22,7 +22,11 @@ reading. Two new measurements instead:
                      REPLAY MODE banner
                      tags: capture
                      fields: state, position_s, duration_s, pct_complete,
-                             speed
+                             speed, timing_mode ("real" if --log has actual
+                             candump -L timestamps, "synthetic" if it
+                             doesn't and app/notimestamp.py assigned
+                             arbitrary evenly-spaced ones instead -- see
+                             docs/replay.md)
 
 Mirrors services/simulator/app/publisher.py's InfluxDB write pattern
 (lazy connect, retry-by-logging on write failure, SYNCHRONOUS write API).
@@ -67,7 +71,10 @@ class ReplayPublisher:
             points.append(point)
         self._write(points)
 
-    def publish_status(self, capture: str, state: str, position_s: float, duration_s: float, speed_label: str) -> None:
+    def publish_status(
+        self, capture: str, state: str, position_s: float, duration_s: float, speed_label: str,
+        timing_mode: str = "real",
+    ) -> None:
         point = (
             Point("replay_status")
             .tag("capture", capture)
@@ -76,6 +83,7 @@ class ReplayPublisher:
             .field("duration_s", duration_s)
             .field("pct_complete", pct_complete(position_s, duration_s))
             .field("speed", speed_label)
+            .field("timing_mode", timing_mode)
         )
         self._write([point])
 

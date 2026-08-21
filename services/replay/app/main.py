@@ -17,6 +17,7 @@ import time
 from .candidates import CANDIDATES, TRIM_DIRECTION_LABEL, TRIM_POSITION_ESTIMATE_LABEL
 from .config import Config
 from .derived import TrimPositionEstimator
+from .notimestamp import load_frames_synthetic_timing
 from .pacing import playback_delay
 from .publisher import ReplayPublisher, wait_for_influxdb
 from .reader import iter_snapshots, load_frames
@@ -63,13 +64,27 @@ def run(
     """publisher and candidates are injectable so tests can drive the full
     pause/restart/stop state machine without a real InfluxDB connection or
     the full master-test01 candidate table."""
-    frames = load_frames(config.log_path)
+    if config.synthetic_timing_interval_s is not None:
+        result = load_frames_synthetic_timing(config.log_path, config.synthetic_timing_interval_s)
+        frames = result.frames
+        if result.errors:
+            log.warning(
+                "synthetic-timing loader: %d line(s) did not match the expected "
+                "no-timestamp candump format and were skipped",
+                len(result.errors),
+            )
+        timing_mode = "synthetic"
+    else:
+        frames = load_frames(config.log_path)
+        timing_mode = "real"
     if not frames:
         raise SystemExit(f"no frames parsed from {config.log_path}")
     duration_s = frames[-1].timestamp - frames[0].timestamp
     log.info(
-        "loaded %d frames from %s (%.1fs simulated), speed=%s, capture=%s",
-        len(frames), config.log_path, duration_s, config.speed_label, config.capture_name,
+        "loaded %d frames from %s (%.1fs %s), speed=%s, capture=%s, timing=%s",
+        len(frames), config.log_path, duration_s,
+        "simulated" if timing_mode == "real" else "SYNTHETIC, not real elapsed time",
+        config.speed_label, config.capture_name, timing_mode,
     )
     log.info("controls: type p<Enter> to pause/resume, r<Enter> to restart, q<Enter> to stop")
 
@@ -83,15 +98,15 @@ def run(
     try:
         while True:
             controls.restart = False
-            _play_once(frames, duration_s, config, publisher, candidates, by_label, controls, sleep)
+            _play_once(frames, duration_s, config, publisher, candidates, by_label, controls, sleep, timing_mode)
             if controls.stop or not controls.restart:
                 break
     finally:
-        publisher.publish_status(config.capture_name, "stopped", 0.0, duration_s, config.speed_label)
+        publisher.publish_status(config.capture_name, "stopped", 0.0, duration_s, config.speed_label, timing_mode)
         publisher.close()
 
 
-def _play_once(frames, duration_s, config, publisher, candidates, by_label, controls: Controls, sleep) -> None:
+def _play_once(frames, duration_s, config, publisher, candidates, by_label, controls: Controls, sleep, timing_mode: str = "real") -> None:
     t0 = frames[0].timestamp
     prev_ts = t0
     last_publish = 0.0
@@ -101,7 +116,7 @@ def _play_once(frames, duration_s, config, publisher, candidates, by_label, cont
     # list) -- see derived.py for what this integrates and why.
     trim_estimator = TrimPositionEstimator() if TRIM_POSITION_ESTIMATE_LABEL in by_label else None
 
-    publisher.publish_status(config.capture_name, "playing", 0.0, duration_s, config.speed_label)
+    publisher.publish_status(config.capture_name, "playing", 0.0, duration_s, config.speed_label, timing_mode)
 
     for frame, updates in iter_snapshots(frames, candidates):
         if controls.stop or controls.restart:
@@ -130,7 +145,7 @@ def _play_once(frames, duration_s, config, publisher, candidates, by_label, cont
         if now - last_publish >= config.publish_interval_s:
             publisher.publish_candidates(config.capture_name, values, by_label)
             publisher.publish_status(
-                config.capture_name, "playing", frame.timestamp - t0, duration_s, config.speed_label,
+                config.capture_name, "playing", frame.timestamp - t0, duration_s, config.speed_label, timing_mode,
             )
             last_publish = now
 
@@ -138,7 +153,7 @@ def _play_once(frames, duration_s, config, publisher, candidates, by_label, cont
         return
 
     publisher.publish_candidates(config.capture_name, values, by_label)
-    publisher.publish_status(config.capture_name, "finished", duration_s, duration_s, config.speed_label)
+    publisher.publish_status(config.capture_name, "finished", duration_s, duration_s, config.speed_label, timing_mode)
     log.info("replay finished (%d candidate fields published) -- p to restart, or leave running", len(values))
 
     # Idle here (rather than returning to run()'s loop immediately) so the

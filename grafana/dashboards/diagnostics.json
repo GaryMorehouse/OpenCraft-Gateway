@@ -189,7 +189,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**The two panels below show replayed historical capture data, not the live vessel.** They only populate while `services/replay` is running against a captured log such as `master-test01.log` -- see `docs/replay.md`. Every value is a raw or hypothesis-tagged CAN field candidate (see `docs/master-test01-analysis.md`), never a confirmed, calibrated decode. Check the Replay Status panel's `capture`/`state` columns before trusting anything in the Candidate Signals table."
+        "content": "**The two panels below show replayed historical capture data, not the live vessel.** They only populate while `services/replay` is running against a captured log such as `master-test01.log` -- see `docs/replay.md`. Every value is a raw or hypothesis-tagged CAN field candidate (see `docs/master-test01-analysis.md`), never a confirmed, calibrated decode. Check the Replay Status panel's `capture`/`state` columns before trusting anything in the Candidate Signals table -- and check its `timing_mode` column too: **SYNTHETIC means the source capture had no real timestamps, so this replay's pacing is arbitrary and no duration/cadence/speed can be trusted from it.**"
       }
     },
     {
@@ -208,7 +208,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"replay_status\")\n  |> filter(fn: (r) => r._field == \"state\" or r._field == \"position_s\" or r._field == \"duration_s\" or r._field == \"pct_complete\" or r._field == \"speed\")\n  |> last()\n  |> pivot(rowKey: [\"capture\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"capture\", \"state\", \"speed\", \"position_s\", \"duration_s\", \"pct_complete\"])",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"replay_status\")\n  |> filter(fn: (r) => r._field == \"state\" or r._field == \"position_s\" or r._field == \"duration_s\" or r._field == \"pct_complete\" or r._field == \"speed\" or r._field == \"timing_mode\")\n  |> last()\n  |> pivot(rowKey: [\"capture\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> keep(columns: [\"capture\", \"state\", \"speed\", \"timing_mode\", \"position_s\", \"duration_s\", \"pct_complete\"])",
           "refId": "A"
         }
       ],
@@ -303,6 +303,44 @@
               {
                 "id": "unit",
                 "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "timing_mode"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "real": {
+                        "color": "green",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "synthetic": {
+                        "text": "SYNTHETIC (no real timing!)",
+                        "color": "red",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
               }
             ]
           }

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from .notimestamp import DEFAULT_SYNTHETIC_INTERVAL_S
 from .pacing import SPEED_MULTIPLIERS
 
 # tools/samples/logs/master-test01.txt, computed from this file's location
@@ -38,6 +39,13 @@ class Config:
     influxdb_org: str
     influxdb_bucket: str
     influxdb_token: str
+    # None (default) = log_path has real candump -L timestamps, use them as
+    # elapsed time. A float = log_path has NO real timestamps (see
+    # notimestamp.py) -- frames are played back in file order at this
+    # synthetic, arbitrary per-frame interval instead. Published as
+    # replay_status's timing_mode field ("real"/"synthetic") so the
+    # dashboard always makes this explicit -- see docs/replay.md.
+    synthetic_timing_interval_s: Optional[float] = None
 
     @classmethod
     def from_args(cls, argv=None) -> "Config":
@@ -69,6 +77,19 @@ class Config:
             "(default: 1.0) -- independent of playback speed, so 'max' speed "
             "doesn't flood InfluxDB with a write per frame",
         )
+        parser.add_argument(
+            "--no-timestamps", action="store_true",
+            help="--log has no real per-frame timestamps (plain 'candump can0 "
+            "> file', not 'candump -L can0') -- play frames back in file "
+            "order at a synthetic, arbitrary pace instead of real elapsed "
+            "time. See docs/replay.md and app/notimestamp.py. The dashboard's "
+            "Replay Status table always shows which mode is active.",
+        )
+        parser.add_argument(
+            "--synthetic-interval-s", type=float, default=DEFAULT_SYNTHETIC_INTERVAL_S,
+            help=f"only used with --no-timestamps: synthetic seconds between "
+            f"consecutive frames (default: {DEFAULT_SYNTHETIC_INTERVAL_S})",
+        )
         args = parser.parse_args(argv)
 
         if not args.log.is_file():
@@ -84,4 +105,5 @@ class Config:
             influxdb_org=_require("INFLUXDB_ORG"),
             influxdb_bucket=_require("INFLUXDB_BUCKET"),
             influxdb_token=_require("INFLUXDB_TOKEN"),
+            synthetic_timing_interval_s=args.synthetic_interval_s if args.no_timestamps else None,
         )

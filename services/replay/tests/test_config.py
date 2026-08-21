@@ -7,6 +7,7 @@ from unittest import mock
 from . import _pathfix  # noqa: F401
 
 from app.config import Config, DEFAULT_LOG
+from app.notimestamp import DEFAULT_SYNTHETIC_INTERVAL_S
 
 
 REQUIRED_ENV = {
@@ -64,6 +65,34 @@ class TestConfigFromArgs(unittest.TestCase):
                 os.environ.pop("INFLUXDB_URL", None)
                 config = Config.from_args(["--log", f.name])
         self.assertEqual(config.influxdb_url, "http://localhost:8086")
+
+    def test_synthetic_timing_defaults_to_none(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+            with mock.patch.dict(os.environ, REQUIRED_ENV, clear=False):
+                config = Config.from_args(["--log", f.name])
+        self.assertIsNone(config.synthetic_timing_interval_s)
+
+    def test_no_timestamps_flag_sets_default_synthetic_interval(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+            with mock.patch.dict(os.environ, REQUIRED_ENV, clear=False):
+                config = Config.from_args(["--log", f.name, "--no-timestamps"])
+        self.assertEqual(config.synthetic_timing_interval_s, DEFAULT_SYNTHETIC_INTERVAL_S)
+
+    def test_synthetic_interval_only_applies_with_no_timestamps_flag(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+            with mock.patch.dict(os.environ, REQUIRED_ENV, clear=False):
+                config = Config.from_args(["--log", f.name, "--synthetic-interval-s", "0.02"])
+        # --synthetic-interval-s alone, without --no-timestamps, should not
+        # silently switch the run into synthetic-timing mode
+        self.assertIsNone(config.synthetic_timing_interval_s)
+
+    def test_no_timestamps_with_custom_interval(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+            with mock.patch.dict(os.environ, REQUIRED_ENV, clear=False):
+                config = Config.from_args(
+                    ["--log", f.name, "--no-timestamps", "--synthetic-interval-s", "0.02"]
+                )
+        self.assertEqual(config.synthetic_timing_interval_s, 0.02)
 
 
 if __name__ == "__main__":

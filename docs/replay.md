@@ -319,6 +319,32 @@ names, matching the simulator's own convention).
 With no `--log`, it replays `tools/samples/logs/master-test01.txt` by
 default. To replay a different capture: `--log path/to/other.txt`.
 
+**If the capture has no real timestamps** (plain `candump can0 > file`
+instead of `candump -L can0` -- `drive03.log`, 2026-08-21, is the first
+example of this in the project), the log lines look like
+`can0  170   [8]  FF 00 00 00 00 00 00 00` with no leading `(timestamp)`.
+`smartcraft_toolkit.parser` requires that timestamp and will parse **zero
+frames** from a file like this. Add `--no-timestamps` and replay switches
+to `app/notimestamp.py`'s loader instead, which plays the frames back in
+their original file order at an arbitrary, evenly-spaced synthetic pace
+(`--synthetic-interval-s`, default 0.005s/frame) rather than real elapsed
+time:
+
+```sh
+python -m app.main --log "C:\path\to\drive03.log" --no-timestamps --speed 1
+```
+
+This is loud everywhere on purpose. `replay_status`'s new `timing_mode`
+field is `"synthetic"` for a run like this (`"real"` otherwise), and the
+Replay Status table on the dashboard color-codes it red with the text
+"SYNTHETIC (no real timing!)" -- the REPLAY MODE banner tells you to
+check it. **No duration, cadence, or speed conclusion is valid from a
+synthetically-timed replay** -- only frame order and raw values are real.
+This is why `master-test01`'s entire evidence base (RPM step timing, the
+engine-hours tick cadence, trim pulse duration, coolant's warm-up curve)
+could never have been derived from a capture like this -- always capture
+with `-L` if you want the resulting log to support that kind of analysis.
+
 **Alternative: Docker.** `docker compose run --rm replay --speed 1` builds
 and runs the same tool in a container (build context is the repo root, so
 the image also bundles `tools/smartcraft_toolkit` and `tools/samples` --

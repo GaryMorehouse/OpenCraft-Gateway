@@ -28,8 +28,8 @@ class FakePublisher:
     def publish_candidates(self, capture, values, by_label):
         self.candidate_calls.append((capture, dict(values)))
 
-    def publish_status(self, capture, state, position_s, duration_s, speed_label):
-        self.status_calls.append((capture, state, position_s, duration_s, speed_label))
+    def publish_status(self, capture, state, position_s, duration_s, speed_label, timing_mode="real"):
+        self.status_calls.append((capture, state, position_s, duration_s, speed_label, timing_mode))
 
     def close(self):
         self.closed = True
@@ -124,6 +124,41 @@ class TestRun(unittest.TestCase):
             # both frames update "Test candidate" (offset 0 of the record-01
             # payload) -- 0x00 then 0x01 -- so the last published value
             # should be the final one, 0x01
+            last_candidate_values = publisher.candidate_calls[-1][1]
+            self.assertEqual(last_candidate_values["Test candidate"], 0x01)
+
+    def test_no_timestamps_run_uses_synthetic_timing_and_reports_it(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "sample.log"
+            write_log(
+                log_path,
+                [
+                    "nohup: ignoring input",
+                    "can0  170   [8]  01 00 00 00 00 00 00 00",
+                    "can0  170   [8]  01 01 00 00 00 00 00 00",
+                ],
+            )
+            config = make_config(log_path, synthetic_timing_interval_s=0.01)
+            controls = Controls(read_stdin=False)
+            publisher = FakePublisher()
+            calls = {"n": 0}
+
+            def fake_sleep(seconds):
+                calls["n"] += 1
+                controls.stop = True
+
+            run(
+                config, controls=controls, sleep=fake_sleep, publisher=publisher,
+                candidates=[TEST_CANDIDATE],
+            )
+
+            self.assertEqual(publisher.status_calls[-1][1], "stopped")
+            # every publish_status call this run made should report synthetic
+            for call in publisher.status_calls:
+                self.assertEqual(call[5], "synthetic")
             last_candidate_values = publisher.candidate_calls[-1][1]
             self.assertEqual(last_candidate_values["Test candidate"], 0x01)
 
